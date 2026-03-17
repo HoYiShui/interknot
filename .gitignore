@@ -1,0 +1,26 @@
+# Anchor / Solana
+.anchor
+target
+test-ledger
+**/*.rs.bk
+
+# Node
+node_modules
+.yarn
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Project-specific: do not commit docs and claude.md
+docs/
+claude.md
+
+# Claude Code
+.claude/
