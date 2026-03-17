@@ -59,7 +59,9 @@ pub fn handle_submit_bid(
     );
 
     let commission = &mut ctx.accounts.commission;
-    commission.bid_count = commission.bid_count.checked_add(1).unwrap_or(commission.bid_count);
+    commission.bid_count = commission.bid_count
+        .checked_add(1)
+        .ok_or(error!(InterKnotError::BidCountOverflow))?;
 
     let bid = &mut ctx.accounts.bid;
     bid.commission_id = commission_id;

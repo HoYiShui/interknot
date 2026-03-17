@@ -30,4 +30,6 @@ pub enum InterKnotError {
     PriceZero,
     #[msg("Commission counter overflow")]
     CommissionCountOverflow,
+    #[msg("Bid counter overflow")]
+    BidCountOverflow,
 }

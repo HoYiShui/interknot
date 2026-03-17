@@ -46,6 +46,7 @@ pub fn handle_select_bid(
     commission.selected_executor = Some(ctx.accounts.bid.executor);
     commission.selected_bid_price = Some(ctx.accounts.bid.price);
     commission.matched_at = Some(clock.unix_timestamp);
+    commission.bid_count = commission.bid_count.saturating_sub(1);
 
     let bid = &mut ctx.accounts.bid;
     bid.status = BidStatus::Selected;

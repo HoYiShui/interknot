@@ -382,6 +382,8 @@ describe("inter-knot", () => {
       expect(commission.selectedExecutor.toBase58()).to.equal(executorB.publicKey.toBase58());
       expect(commission.selectedBidPrice.toNumber()).to.equal(300_000);
       expect(commission.matchedAt).to.not.be.null;
+      // bid_count should decrement: was 2 (B + C), now 1 (selected bid no longer "active")
+      expect(commission.bidCount).to.equal(1);
 
       const bid = await program.account.bid.fetch(bPda);
       expect(JSON.stringify(bid.status)).to.equal(JSON.stringify({ selected: {} }));
@@ -603,6 +605,8 @@ describe("inter-knot", () => {
 
     it("fails: wrong executor tries to withdraw", async () => {
       // executor C's bid on commission #0 is still active
+      // executor B passes their own key as signer, but the bid PDA is derived
+      // from executor C's key — so the seeds constraint will fail
       const [commPda] = commissionPda(0);
       const [bPda] = bidPda(0, executorC.publicKey);
 
@@ -618,8 +622,11 @@ describe("inter-knot", () => {
           .rpc();
         expect.fail("Should have thrown");
       } catch (err: any) {
-        // PDA derivation mismatch or constraint error
-        expect(err).to.exist;
+        // Bid PDA seeds include executor key, so passing a different signer
+        // causes a seeds constraint violation (ConstraintSeeds)
+        expect(err.error).to.exist;
+        const code = err.error.errorCode?.code;
+        expect(["ConstraintSeeds", "UnauthorizedExecutor"]).to.include(code);
       }
     });
   });
