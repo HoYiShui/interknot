@@ -630,4 +630,233 @@ describe("inter-knot", () => {
       }
     });
   });
+
+  // ═══════════════════════════════════════════
+  // Day 3: Full lifecycle + edge cases
+  // ═══════════════════════════════════════════
+
+  describe("full lifecycle integration", () => {
+    const executorD = Keypair.generate();
+    // Uses commission #4 (next available from config counter)
+
+    before(async () => {
+      await airdrop(executorD.publicKey);
+    });
+
+    it("create → bid → select → complete (single flow)", async () => {
+      // Step 1: Create commission #4
+      const [commPda] = commissionPda(4);
+      const createTx = await program.methods
+        .createCommission(
+          "compute/llm-inference",
+          taskSpecHash,
+          "https://example.com/lifecycle-spec.json",
+          new BN(1_000_000), // 1 USDC
+          futureDeadline()
+        )
+        .accounts({
+          delegator: authority.publicKey,
+          config: configPda,
+          commission: commPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      let commission = await program.account.commission.fetch(commPda);
+      expect(commission.commissionId.toNumber()).to.equal(4);
+      expect(JSON.stringify(commission.status)).to.equal(JSON.stringify({ open: {} }));
+      expect(commission.bidCount).to.equal(0);
+      expect(commission.selectedExecutor).to.be.null;
+      expect(commission.matchedAt).to.be.null;
+      expect(commission.completedAt).to.be.null;
+
+      // Step 2: Executor D submits bid
+      const [bidPdaD] = bidPda(4, executorD.publicKey);
+      const bidTx = await program.methods
+        .submitBid(new BN(4), new BN(750_000), "http://executor-d:8080/tasks")
+        .accounts({
+          executor: executorD.publicKey,
+          commission: commPda,
+          bid: bidPdaD,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([executorD])
+        .rpc();
+
+      commission = await program.account.commission.fetch(commPda);
+      expect(commission.bidCount).to.equal(1);
+      let bid = await program.account.bid.fetch(bidPdaD);
+      expect(bid.price.toNumber()).to.equal(750_000);
+      expect(JSON.stringify(bid.status)).to.equal(JSON.stringify({ active: {} }));
+
+      // Step 3: Delegator selects executor D
+      const selectTx = await program.methods
+        .selectBid(new BN(4))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda,
+          bid: bidPdaD,
+        })
+        .rpc();
+
+      commission = await program.account.commission.fetch(commPda);
+      expect(JSON.stringify(commission.status)).to.equal(JSON.stringify({ matched: {} }));
+      expect(commission.selectedExecutor.toBase58()).to.equal(executorD.publicKey.toBase58());
+      expect(commission.selectedBidPrice.toNumber()).to.equal(750_000);
+      expect(commission.matchedAt).to.not.be.null;
+      expect(commission.bidCount).to.equal(0); // 1 bid was selected → 0 active
+      bid = await program.account.bid.fetch(bidPdaD);
+      expect(JSON.stringify(bid.status)).to.equal(JSON.stringify({ selected: {} }));
+
+      // Step 4: Delegator completes
+      const completeTx = await program.methods
+        .completeCommission(new BN(4))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda,
+        })
+        .rpc();
+
+      commission = await program.account.commission.fetch(commPda);
+      expect(JSON.stringify(commission.status)).to.equal(JSON.stringify({ completed: {} }));
+      expect(commission.completedAt).to.not.be.null;
+
+      // Verify all 4 transactions succeeded
+      expect(createTx).to.be.a("string");
+      expect(bidTx).to.be.a("string");
+      expect(selectTx).to.be.a("string");
+      expect(completeTx).to.be.a("string");
+    });
+  });
+
+  describe("edge cases", () => {
+    const executorE = Keypair.generate();
+
+    before(async () => {
+      await airdrop(executorE.publicKey);
+    });
+
+    it("fails: bid on cancelled commission", async () => {
+      // Commission #2 was cancelled in earlier tests
+      const [commPda] = commissionPda(2);
+      const [bPda] = bidPda(2, executorE.publicKey);
+
+      try {
+        await program.methods
+          .submitBid(new BN(2), new BN(100_000), "http://localhost:8080/tasks")
+          .accounts({
+            executor: executorE.publicKey,
+            commission: commPda,
+            bid: bPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([executorE])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CommissionNotOpen");
+      }
+    });
+
+    it("fails: bid on completed commission", async () => {
+      // Commission #0 was completed in earlier tests
+      const [commPda] = commissionPda(0);
+      const [bPda] = bidPda(0, executorE.publicKey);
+
+      try {
+        await program.methods
+          .submitBid(new BN(0), new BN(100_000), "http://localhost:8080/tasks")
+          .accounts({
+            executor: executorE.publicKey,
+            commission: commPda,
+            bid: bPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([executorE])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CommissionNotOpen");
+      }
+    });
+
+    it("fails: complete an already-completed commission", async () => {
+      // Commission #0 was completed
+      const [commPda] = commissionPda(0);
+
+      try {
+        await program.methods
+          .completeCommission(new BN(0))
+          .accounts({
+            delegator: authority.publicKey,
+            commission: commPda,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CommissionNotMatched");
+      }
+    });
+
+    it("fails: cancel a completed commission", async () => {
+      const [commPda] = commissionPda(0);
+
+      try {
+        await program.methods
+          .cancelCommission(new BN(0))
+          .accounts({
+            delegator: authority.publicKey,
+            commission: commPda,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CommissionNotOpen");
+      }
+    });
+
+    it("fails: withdraw a selected bid", async () => {
+      // executor B's bid on commission #0 was selected
+      const [commPda] = commissionPda(0);
+      const [bPda] = bidPda(0, executorB.publicKey);
+
+      try {
+        await program.methods
+          .withdrawBid(new BN(0))
+          .accounts({
+            executor: executorB.publicKey,
+            commission: commPda,
+            bid: bPda,
+          })
+          .signers([executorB])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("BidNotActive");
+      }
+    });
+
+    it("fails: cancel a cancelled commission", async () => {
+      const [commPda] = commissionPda(2);
+
+      try {
+        await program.methods
+          .cancelCommission(new BN(2))
+          .accounts({
+            delegator: authority.publicKey,
+            commission: commPda,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CommissionNotOpen");
+      }
+    });
+
+    it("config commission_count reflects total created", async () => {
+      const config = await program.account.platformConfig.fetch(configPda);
+      // Commissions #0-#4 have been created (5 total)
+      expect(config.commissionCount.toNumber()).to.equal(5);
+    });
+  });
 });
