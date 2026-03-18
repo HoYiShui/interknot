@@ -104,10 +104,23 @@ async function main() {
     }
   }
 
-  // Fetch config to get commission_count
+  // Fetch config and verify invariants
   const config = await program.account.platformConfig.fetch(configPda);
   const nextId = config.commissionCount.toNumber();
   console.log(`  Commission counter: ${nextId}`);
+
+  // Verify config matches expected values
+  if (config.authority.toBase58() !== authority.publicKey.toBase58()) {
+    throw new Error(
+      `Config authority mismatch: expected ${authority.publicKey.toBase58()}, got ${config.authority.toBase58()}`
+    );
+  }
+  if (config.usdcMint.toBase58() !== USDC_MINT.toBase58()) {
+    throw new Error(
+      `Config USDC mint mismatch: expected ${USDC_MINT.toBase58()}, got ${config.usdcMint.toBase58()}`
+    );
+  }
+  console.log("  ✓ Config authority and USDC mint verified");
 
   // Step 2: Create Commission
   console.log(`\n[3/6] Creating commission #${nextId}...`);
