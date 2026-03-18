@@ -1,0 +1,20 @@
+{
+  "name": "@inter-knot/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Inter-Knot protocol",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/web3.js": "^1.98.0",
+    "bn.js": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.0",
+    "typescript": "^5.7.3"
+  }
+}
