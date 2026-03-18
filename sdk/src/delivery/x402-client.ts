@@ -3,7 +3,7 @@ import { createKeyPairSignerFromBytes } from "@solana/kit";
 import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
 import { ExactSvmScheme } from "@x402/svm";
 
-import { TaskInput, TaskOutput } from "../server/handlers";
+import { TaskInput, TaskOutput } from "../server/handlers.js";
 
 const DEVNET_NETWORK = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
 
@@ -12,6 +12,14 @@ export interface DeliveryClientConfig {
   wallet: Keypair;
   /** Solana network in CAIP-2 format */
   network?: string;
+}
+
+export interface DeliveryResult {
+  result: TaskOutput;
+  /** Settlement transaction hash (if available from x402 response) */
+  paymentTxHash: string | null;
+  /** Raw settlement response header */
+  settlementRaw: string | null;
 }
 
 /**
@@ -46,11 +54,12 @@ export class DeliveryClient {
 
   /**
    * Send a task to the executor's endpoint with automatic x402 payment.
+   * Returns both the task result and settlement metadata.
    */
   async requestWithPayment(
     serviceEndpoint: string,
     taskInput: TaskInput,
-  ): Promise<TaskOutput> {
+  ): Promise<DeliveryResult> {
     const paidFetch = await this.getPaidFetch();
 
     const response = await paidFetch(serviceEndpoint, {
@@ -65,6 +74,24 @@ export class DeliveryClient {
       );
     }
 
-    return (await response.json()) as TaskOutput;
+    // Extract settlement metadata from x402 response headers
+    const settlementRaw =
+      response.headers.get("x-payment-response") ??
+      response.headers.get("payment-response");
+
+    let paymentTxHash: string | null = null;
+    if (settlementRaw) {
+      try {
+        const parsed = JSON.parse(settlementRaw);
+        paymentTxHash = parsed.txHash ?? parsed.transactionHash ?? parsed.signature ?? null;
+      } catch {
+        // Header might not be JSON; store raw value
+        paymentTxHash = null;
+      }
+    }
+
+    const result = (await response.json()) as TaskOutput;
+
+    return { result, paymentTxHash, settlementRaw };
   }
 }

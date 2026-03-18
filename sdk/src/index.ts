@@ -19,7 +19,7 @@ export {
 } from "./server/handlers";
 
 // Delivery (delegator side)
-export { DeliveryClient, DeliveryClientConfig, createPaidFetch } from "./delivery/x402-client";
+export { DeliveryClient, DeliveryClientConfig, DeliveryResult, createPaidFetch } from "./delivery/x402-client";
 
 // Types
 export {

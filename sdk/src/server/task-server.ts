@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { paymentMiddlewareFromConfig } from "@x402/hono";
+import { HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactSvmScheme as ExactSvmServerScheme } from "@x402/svm/exact/server";
 import { Keypair } from "@solana/web3.js";
 
 import { TaskHandler, TaskInput, MockTaskHandler } from "./handlers.js";
@@ -14,11 +16,14 @@ export interface TaskServerConfig {
   price: string;
   /** Solana network in CAIP-2 format */
   network?: string;
+  /** x402 facilitator URL */
+  facilitatorUrl?: string;
   /** Task handler implementation */
   handler?: TaskHandler;
 }
 
 const DEVNET_NETWORK = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
+const DEFAULT_FACILITATOR = "https://x402.org/facilitator";
 
 /**
  * Creates a Hono app for the executor's task server with x402 payment protection.
@@ -27,6 +32,7 @@ export async function createTaskServer(config: TaskServerConfig) {
   const app = new Hono();
   const handler = config.handler ?? new MockTaskHandler();
   const network = config.network ?? DEVNET_NETWORK;
+  const facilitatorUrl = config.facilitatorUrl ?? DEFAULT_FACILITATOR;
   const payTo = config.wallet.publicKey.toBase58();
 
   // Health check (not paywalled)
@@ -46,7 +52,20 @@ export async function createTaskServer(config: TaskServerConfig) {
     },
   };
 
-  app.use("/tasks", paymentMiddlewareFromConfig(routes));
+  // Register the SVM server-side scheme so the middleware can
+  // build payment requirements and process settlement
+  const svmServerScheme = new ExactSvmServerScheme();
+
+  const facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
+
+  app.use(
+    "/tasks",
+    paymentMiddlewareFromConfig(
+      routes,
+      facilitatorClient,
+      [{ network: network as `${string}:${string}`, server: svmServerScheme }],
+    ),
+  );
 
   app.post("/tasks", async (c) => {
     const input = (await c.req.json()) as TaskInput;
