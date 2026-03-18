@@ -10,8 +10,16 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
+    "@hono/node-server": "^1.19.11",
+    "@node-rs/xxhash": "^1.7.6",
+    "@solana/kit": "^6.3.1",
     "@solana/web3.js": "^1.98.0",
-    "bn.js": "^5.2.1"
+    "@x402/core": "^2.7.0",
+    "@x402/fetch": "^2.7.0",
+    "@x402/hono": "^2.7.0",
+    "@x402/svm": "^2.7.0",
+    "bn.js": "^5.2.1",
+    "hono": "^4.12.8"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",

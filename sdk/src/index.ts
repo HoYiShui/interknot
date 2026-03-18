@@ -8,6 +8,19 @@ export { BidClient } from "./client/bid";
 export { MatchingClient } from "./client/matching";
 export { QueryClient } from "./client/query";
 
+// Server (executor side)
+export { createTaskServer, startTaskServer, TaskServerConfig } from "./server/task-server";
+export {
+  TaskHandler,
+  TaskInput,
+  TaskOutput,
+  MockTaskHandler,
+  OllamaTaskHandler,
+} from "./server/handlers";
+
+// Delivery (delegator side)
+export { DeliveryClient, DeliveryClientConfig, createPaidFetch } from "./delivery/x402-client";
+
 // Types
 export {
   Commission,
