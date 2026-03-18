@@ -1,13 +1,14 @@
 import { Program, AnchorProvider, Idl } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
-import * as fs from "fs";
-import * as path from "path";
 
 import { CommissionClient } from "./commission";
 import { BidClient } from "./bid";
 import { MatchingClient } from "./matching";
 import { QueryClient } from "./query";
+
+// Bundled IDL — the SDK is self-contained, no repo-local file reads needed
+import defaultIdl from "../idl/inter_knot.json";
 
 export const PROGRAM_ID = new PublicKey(
   "G33455TTFsdoxKHTLHE5MqFjUY8gCPBgZGxJKbAuuYSh"
@@ -47,6 +48,8 @@ export interface InterKnotConfig {
   connection: Connection;
   wallet: Keypair;
   programId?: PublicKey;
+  /** Optional: provide a custom IDL. Defaults to bundled IDL. */
+  idl?: Idl;
 }
 
 export class InterKnot {
@@ -80,24 +83,11 @@ export class InterKnot {
       commitment: "confirmed",
     });
 
-    // Load IDL from the standard Anchor build output
-    const idlPath = path.resolve(
-      __dirname,
-      "../../target/idl/inter_knot.json"
-    );
-    let idl: Idl;
-    if (fs.existsSync(idlPath)) {
-      idl = JSON.parse(fs.readFileSync(idlPath, "utf-8"));
-    } else {
-      // Fallback: try relative to cwd
-      const cwdIdlPath = path.resolve(
-        process.cwd(),
-        "target/idl/inter_knot.json"
-      );
-      idl = JSON.parse(fs.readFileSync(cwdIdlPath, "utf-8"));
-    }
+    // Use bundled IDL by default; override idl.address to match configured programId
+    const idl: Idl = config.idl ?? (defaultIdl as unknown as Idl);
+    const resolvedIdl = { ...idl, address: this.programId.toBase58() };
 
-    this.program = new Program(idl, this.provider);
+    this.program = new Program(resolvedIdl, this.provider);
 
     // Anchor's dynamic IDL loading doesn't produce typed account accessors.
     // We use `accounts` as a typed shortcut to avoid `(program.account as any)` everywhere.

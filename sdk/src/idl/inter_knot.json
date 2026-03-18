@@ -1,0 +1,926 @@
+{
+  "address": "G33455TTFsdoxKHTLHE5MqFjUY8gCPBgZGxJKbAuuYSh",
+  "metadata": {
+    "name": "inter_knot",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "cancel_commission",
+      "discriminator": [
+        212,
+        246,
+        181,
+        124,
+        1,
+        92,
+        94,
+        23
+      ],
+      "accounts": [
+        {
+          "name": "delegator",
+          "signer": true
+        },
+        {
+          "name": "commission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  109,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "complete_commission",
+      "discriminator": [
+        135,
+        129,
+        94,
+        73,
+        223,
+        213,
+        131,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "delegator",
+          "signer": true
+        },
+        {
+          "name": "commission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  109,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_commission",
+      "discriminator": [
+        142,
+        218,
+        95,
+        250,
+        188,
+        9,
+        58,
+        75
+      ],
+      "accounts": [
+        {
+          "name": "delegator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  116,
+                  101,
+                  114,
+                  95,
+                  107,
+                  110,
+                  111,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "commission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  109,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.commission_count",
+                "account": "PlatformConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "task_type",
+          "type": "string"
+        },
+        {
+          "name": "task_spec_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "task_spec_uri",
+          "type": "string"
+        },
+        {
+          "name": "max_price",
+          "type": "u64"
+        },
+        {
+          "name": "deadline",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  116,
+                  101,
+                  114,
+                  95,
+                  107,
+                  110,
+                  111,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "usdc_mint",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "select_bid",
+      "discriminator": [
+        237,
+        159,
+        214,
+        70,
+        104,
+        96,
+        28,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "delegator",
+          "signer": true
+        },
+        {
+          "name": "commission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  109,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bid",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              },
+              {
+                "kind": "account",
+                "path": "bid.executor",
+                "account": "Bid"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "submit_bid",
+      "discriminator": [
+        19,
+        164,
+        237,
+        254,
+        64,
+        139,
+        237,
+        93
+      ],
+      "accounts": [
+        {
+          "name": "executor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "commission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  109,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bid",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              },
+              {
+                "kind": "account",
+                "path": "executor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_id",
+          "type": "u64"
+        },
+        {
+          "name": "price",
+          "type": "u64"
+        },
+        {
+          "name": "service_endpoint",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_bid",
+      "discriminator": [
+        110,
+        53,
+        157,
+        195,
+        147,
+        100,
+        110,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "executor",
+          "signer": true
+        },
+        {
+          "name": "commission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  109,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "bid",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              },
+              {
+                "kind": "account",
+                "path": "executor"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_id",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Bid",
+      "discriminator": [
+        143,
+        246,
+        48,
+        245,
+        42,
+        145,
+        180,
+        88
+      ]
+    },
+    {
+      "name": "Commission",
+      "discriminator": [
+        152,
+        254,
+        124,
+        223,
+        255,
+        105,
+        124,
+        133
+      ]
+    },
+    {
+      "name": "PlatformConfig",
+      "discriminator": [
+        160,
+        78,
+        128,
+        0,
+        248,
+        83,
+        230,
+        160
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "CommissionNotOpen",
+      "msg": "Commission is not in Open status"
+    },
+    {
+      "code": 6001,
+      "name": "CommissionNotMatched",
+      "msg": "Commission is not in Matched status"
+    },
+    {
+      "code": 6002,
+      "name": "BidPriceTooHigh",
+      "msg": "Bid price exceeds maximum price"
+    },
+    {
+      "code": 6003,
+      "name": "DeadlinePassed",
+      "msg": "Bidding deadline has passed"
+    },
+    {
+      "code": 6004,
+      "name": "DeadlineNotFuture",
+      "msg": "Deadline must be in the future"
+    },
+    {
+      "code": 6005,
+      "name": "UnauthorizedDelegator",
+      "msg": "Only the delegator can perform this action"
+    },
+    {
+      "code": 6006,
+      "name": "UnauthorizedExecutor",
+      "msg": "Only the executor can perform this action"
+    },
+    {
+      "code": 6007,
+      "name": "SelfBidNotAllowed",
+      "msg": "Cannot bid on your own commission"
+    },
+    {
+      "code": 6008,
+      "name": "BidNotActive",
+      "msg": "Bid is not in Active status"
+    },
+    {
+      "code": 6009,
+      "name": "TaskTypeTooLong",
+      "msg": "Task type exceeds maximum length"
+    },
+    {
+      "code": 6010,
+      "name": "TaskSpecUriTooLong",
+      "msg": "Task spec URI exceeds maximum length"
+    },
+    {
+      "code": 6011,
+      "name": "ServiceEndpointTooLong",
+      "msg": "Service endpoint exceeds maximum length"
+    },
+    {
+      "code": 6012,
+      "name": "PriceZero",
+      "msg": "Price must be greater than zero"
+    },
+    {
+      "code": 6013,
+      "name": "CommissionCountOverflow",
+      "msg": "Commission counter overflow"
+    },
+    {
+      "code": 6014,
+      "name": "BidCountOverflow",
+      "msg": "Bid counter overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Bid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "commission_id",
+            "docs": [
+              "Which commission this bid is for"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "executor",
+            "docs": [
+              "Bidder's wallet"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "price",
+            "docs": [
+              "Bid price in USDC (6 decimals)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "service_endpoint",
+            "docs": [
+              "HTTP endpoint for x402 delivery"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Bid status"
+            ],
+            "type": {
+              "defined": {
+                "name": "BidStatus"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "docs": [
+              "Creation timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BidStatus",
+      "repr": {
+        "kind": "rust"
+      },
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Selected"
+          },
+          {
+            "name": "Withdrawn"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Commission",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "commission_id",
+            "docs": [
+              "Unique ID (from config.commission_count)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "delegator",
+            "docs": [
+              "Creator's wallet"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "task_type",
+            "docs": [
+              "e.g. \"compute/llm-inference\""
+            ],
+            "type": "string"
+          },
+          {
+            "name": "task_spec_hash",
+            "docs": [
+              "SHA-256 of the full task_spec JSON"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "task_spec_uri",
+            "docs": [
+              "URI pointing to full task_spec JSON"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "max_price",
+            "docs": [
+              "Maximum price in USDC (6 decimals, so 1_000_000 = 1 USDC)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "deadline",
+            "docs": [
+              "Bidding deadline (Unix timestamp)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Commission status"
+            ],
+            "type": {
+              "defined": {
+                "name": "CommissionStatus"
+              }
+            }
+          },
+          {
+            "name": "selected_executor",
+            "docs": [
+              "Winning executor's wallet (set on match)"
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "selected_bid_price",
+            "docs": [
+              "Winning bid price (set on match)"
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "bid_count",
+            "docs": [
+              "Number of active bids"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "created_at",
+            "docs": [
+              "Creation timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "matched_at",
+            "docs": [
+              "When match was made"
+            ],
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "completed_at",
+            "docs": [
+              "When marked complete"
+            ],
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CommissionStatus",
+      "repr": {
+        "kind": "rust"
+      },
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Matched"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Cancelled"
+          },
+          {
+            "name": "Expired"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlatformConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Admin (deployer). Can update config."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "commission_count",
+            "docs": [
+              "Auto-incrementing counter for commission IDs"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "usdc_mint",
+            "docs": [
+              "USDC SPL token mint address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "platform_fee_bps",
+            "docs": [
+              "Platform fee in basis points. MVP: 0"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

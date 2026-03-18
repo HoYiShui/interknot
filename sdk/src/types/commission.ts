@@ -40,7 +40,10 @@ export function parseCommissionStatus(raw: any): CommissionStatus {
 
 export interface CreateCommissionParams {
   taskType: string;
+  /** Full task spec JSON — will be SHA-256 hashed for on-chain verification */
   taskSpec: Record<string, any>;
+  /** Short URI pointing to the full task spec (max 128 chars). e.g. IPFS, HTTP, or arweave URL */
+  taskSpecUri: string;
   maxPrice: number;
   deadline: string | number;
 }

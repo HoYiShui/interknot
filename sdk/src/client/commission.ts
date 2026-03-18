@@ -26,8 +26,6 @@ export class CommissionClient {
     const taskSpecHash = Array.from(
       crypto.createHash("sha256").update(taskSpecJson).digest()
     );
-    // For MVP, store task spec at a placeholder URI
-    const taskSpecUri = `data:application/json;base64,${Buffer.from(taskSpecJson).toString("base64")}`;
 
     const maxPrice = usdcToLamports(params.maxPrice);
     const deadline = parseDeadline(params.deadline);
@@ -38,7 +36,7 @@ export class CommissionClient {
       .createCommission(
         params.taskType,
         taskSpecHash,
-        taskSpecUri,
+        params.taskSpecUri,
         maxPrice,
         deadline
       )
