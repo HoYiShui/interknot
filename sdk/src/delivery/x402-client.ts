@@ -1,6 +1,6 @@
 import { Keypair } from "@solana/web3.js";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
-import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
+import { wrapFetchWithPayment, x402Client, decodePaymentResponseHeader } from "@x402/fetch";
 import { ExactSvmScheme } from "@x402/svm";
 
 import { TaskInput, TaskOutput } from "../server/handlers.js";
@@ -82,10 +82,13 @@ export class DeliveryClient {
     let paymentTxHash: string | null = null;
     if (settlementRaw) {
       try {
-        const parsed = JSON.parse(settlementRaw);
-        paymentTxHash = parsed.txHash ?? parsed.transactionHash ?? parsed.signature ?? null;
+        // x402 PAYMENT-RESPONSE header is base64-encoded, not raw JSON
+        const decoded = decodePaymentResponseHeader(settlementRaw);
+        paymentTxHash = (decoded as any).txHash
+          ?? (decoded as any).transactionHash
+          ?? (decoded as any).signature
+          ?? null;
       } catch {
-        // Header might not be JSON; store raw value
         paymentTxHash = null;
       }
     }
