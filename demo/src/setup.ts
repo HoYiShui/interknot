@@ -139,6 +139,7 @@ async function main() {
   console.log("  Next steps:");
   console.log("    Terminal 1: pnpm --dir demo agent-b");
   console.log("    Terminal 2: pnpm --dir demo agent-a");
+  console.log("    Or one-command: ./demo/mock-demo.sh");
   console.log("");
 }
 

@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "setup": "tsx src/setup.ts",
+    "demo:setup": "tsx src/setup.ts",
     "agent-a": "tsx src/agent-a.ts",
     "agent-b": "tsx src/agent-b.ts",
     "agent-c": "tsx src/agent-c.ts"

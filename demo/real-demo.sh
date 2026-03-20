@@ -50,7 +50,7 @@ echo ""
 
 # 2. Setup (generates wallets, airdrops SOL, checks USDC)
 echo "[setup] Running demo setup..."
-pnpm --dir demo setup
+pnpm --dir demo demo:setup
 echo ""
 
 # 3. Start Agent B with real Ollama handler
