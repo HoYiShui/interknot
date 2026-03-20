@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { DeliveryClient } from "@inter-knot/sdk";
-import { loadKeypair } from "../utils/config.js";
+import { loadKeypair, loadConfig, networkToX402 } from "../utils/config.js";
 import { printSuccess, printError } from "../utils/display.js";
 
 export function deliverCommand(): Command {
@@ -12,9 +12,11 @@ export function deliverCommand(): Command {
     .action(async (endpoint, opts) => {
       try {
         const wallet = loadKeypair(opts.keypair);
+        const cfg = loadConfig();
+        const network = networkToX402(cfg.network);
         const taskInput = JSON.parse(opts.input);
 
-        const deliveryClient = new DeliveryClient({ wallet });
+        const deliveryClient = new DeliveryClient({ wallet, network });
         console.log(`Delivering task to ${endpoint}...`);
 
         const { result, paymentTxHash, settlementRaw } =

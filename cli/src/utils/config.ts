@@ -46,3 +46,11 @@ export function loadKeypair(keypairPath?: string): Keypair {
   const raw = JSON.parse(readFileSync(resolvedPath, "utf-8")) as number[];
   return Keypair.fromSecretKey(Uint8Array.from(raw));
 }
+
+/** Map CLI network name to CAIP-2 x402 network string. */
+export function networkToX402(network: CliConfig["network"]): `${string}:${string}` {
+  if (network === "mainnet") {
+    return "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+  }
+  return "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"; // devnet
+}

@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { startTaskServer, OllamaTaskHandler, estimateComputeCost } from "@inter-knot/sdk";
-import { loadKeypair } from "../utils/config.js";
+import { loadKeypair, loadConfig, networkToX402 } from "../utils/config.js";
 import { printError } from "../utils/display.js";
 
 export function serveCommand(): Command {
@@ -21,7 +21,9 @@ export function serveCommand(): Command {
     .action(async (opts) => {
       try {
         const wallet = loadKeypair(opts.keypair);
+        const cfg = loadConfig();
         const port = parseInt(opts.port);
+        const network = networkToX402(cfg.network);
 
         let price: string;
         if (opts.price === "auto") {
@@ -39,6 +41,7 @@ export function serveCommand(): Command {
           wallet,
           port,
           price,
+          network,
         };
 
         if (opts.facilitator) {

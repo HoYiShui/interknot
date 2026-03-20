@@ -9,27 +9,31 @@ export function pricingCommand(): Command {
     .description("Estimate task pricing using the reference compute pricing function")
     .requiredOption("--model <model>", "Model name (e.g. llama-3-8b, llama-3-70b)")
     .option("--max-tokens <n>", "Maximum tokens to generate", "2048")
-    .option("--tps <n>", "Estimated tokens per second for your hardware", "30")
-    .option("--gpu-power <watts>", "GPU power consumption in watts", "300")
+    .option("--tps <n>", "Estimated tokens per second for your hardware (omit to use model default)")
+    .option("--gpu-power <watts>", "GPU power consumption in watts (omit to use model default)")
     .option("--electricity <rate>", "Electricity cost per kWh (USD)", "0.12")
     .action((opts) => {
       const maxTokens = parseInt(opts.maxTokens);
-      const tps = parseInt(opts.tps);
-      const gpuPowerWatt = parseInt(opts.gpuPower);
       const electricityCostPerKwh = parseFloat(opts.electricity);
 
-      const estimate = estimateComputeCost(
-        { model: opts.model, maxTokens },
-        {
-          localHardware: {
-            gpuModel: "custom",
-            vramGb: 0,
-            gpuPowerWatt,
-            estimatedTPS: tps,
-          },
-          electricityCostPerKwh,
-        },
-      );
+      // Only inject localHardware when the user explicitly provides hardware params.
+      // Otherwise, the pricing function uses model-specific defaults from KNOWN_MODELS.
+      const hasHardwareOpts = opts.tps !== undefined || opts.gpuPower !== undefined;
+      const ctx = {
+        electricityCostPerKwh,
+        ...(hasHardwareOpts
+          ? {
+              localHardware: {
+                gpuModel: "custom",
+                vramGb: 0,
+                gpuPowerWatt: parseInt(opts.gpuPower ?? "300"),
+                estimatedTPS: parseInt(opts.tps ?? "30"),
+              },
+            }
+          : {}),
+      };
+
+      const estimate = estimateComputeCost({ model: opts.model, maxTokens }, ctx);
 
       console.log(`\nPricing Estimate for ${opts.model} (${maxTokens} tokens)`);
       console.log("─────────────────────────────────────────");

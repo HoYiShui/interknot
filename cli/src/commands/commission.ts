@@ -55,7 +55,9 @@ export function commissionCommand(): Command {
     .action(async (opts) => {
       try {
         const { client } = buildClient(opts.keypair);
-        const commissions = await client.query.getOpenCommissions();
+        const commissions = await client.query.getOpenCommissions(
+          opts.taskType ? { taskType: opts.taskType } : undefined,
+        );
         if (commissions.length === 0) {
           console.log("No open commissions found.");
           return;

@@ -6,6 +6,7 @@
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "test": "anchor test",
     "verify:devnet": "tsx scripts/devnet-verify.ts",
+    "test:cli": "pnpm build && tsx scripts/cli-smoke-test.ts",
     "build:sdk": "pnpm --dir sdk build",
     "build:cli": "pnpm --dir cli build",
     "build": "pnpm build:sdk && pnpm build:cli"
