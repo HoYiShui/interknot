@@ -21,6 +21,10 @@ export {
 // Delivery (delegator side)
 export { DeliveryClient, DeliveryClientConfig, DeliveryResult, createPaidFetch } from "./delivery/x402-client";
 
+// Pricing
+export { estimateComputeCost, computeLlmPricing, ComputeLlmSpec } from "./pricing/compute";
+export { PricingContext, PriceEstimate, PricingFunction } from "./pricing/types";
+
 // Types
 export {
   Commission,

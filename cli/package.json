@@ -1,0 +1,26 @@
+{
+  "name": "@inter-knot/cli",
+  "version": "0.1.0",
+  "description": "CLI for the Inter-Knot protocol",
+  "bin": {
+    "inter-knot": "./dist/index.js"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@inter-knot/sdk": "workspace:*",
+    "@solana/web3.js": "^1.98.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}

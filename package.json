@@ -5,7 +5,10 @@
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "test": "anchor test",
-    "verify:devnet": "tsx scripts/devnet-verify.ts"
+    "verify:devnet": "tsx scripts/devnet-verify.ts",
+    "build:sdk": "pnpm --dir sdk build",
+    "build:cli": "pnpm --dir cli build",
+    "build": "pnpm build:sdk && pnpm build:cli"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1"
