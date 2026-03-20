@@ -7,10 +7,12 @@
  * Run: pnpm --dir demo setup
  */
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
 import { InterKnot } from "@inter-knot/sdk";
 import {
   RPC,
   PROGRAM_ID,
+  DEVNET_USDC_MINT,
   WALLETS_FILE,
   saveWallets,
   loadWallets,
@@ -93,12 +95,42 @@ async function main() {
     ok(`Initialized — tx: ${txSig}`);
   }
 
-  // Step 4: Print summary
-  step(4, 4, "Setup complete!");
+  // Step 4: Check Agent A's devnet USDC balance
+  step(4, 5, "Checking Agent A devnet USDC balance...");
+  let usdcBalanceUi = 0;
+  try {
+    const ata = await getAssociatedTokenAddress(DEVNET_USDC_MINT, wallets.agentA.publicKey);
+    const tokenAccount = await getAccount(connection, ata);
+    usdcBalanceUi = Number(tokenAccount.amount) / 1_000_000;
+    ok(`Agent A USDC: ${usdcBalanceUi.toFixed(6)} USDC`);
+  } catch {
+    usdcBalanceUi = 0;
+    console.log("  ⚠  Agent A has no devnet USDC token account yet.");
+  }
+
+  if (usdcBalanceUi < 0.10) {
+    console.log("");
+    console.log("  ╔══════════════════════════════════════════════════════════╗");
+    console.log("  ║  ACTION REQUIRED: Agent A needs devnet USDC to pay tasks ║");
+    console.log("  ╠══════════════════════════════════════════════════════════╣");
+    console.log("  ║  Agent A address:                                         ║");
+    console.log(`  ║  ${wallets.agentA.publicKey.toBase58()}  ║`);
+    console.log("  ║                                                            ║");
+    console.log("  ║  Get devnet USDC from the faucet:                          ║");
+    console.log("  ║  https://spl-token-faucet.com/?token-name=USDC-Dev         ║");
+    console.log("  ║                                                            ║");
+    console.log("  ║  The demo requires ~0.10 USDC in Agent A's wallet.         ║");
+    console.log("  ╚══════════════════════════════════════════════════════════╝");
+    console.log("");
+  }
+
+  // Step 5: Print summary
+  step(5, 5, "Setup complete!");
   console.log("");
   console.log("  Agent A (delegator):");
   console.log(`    Pubkey:  ${wallets.agentA.publicKey.toBase58()}`);
-  console.log(`    Balance: ${((await connection.getBalance(wallets.agentA.publicKey)) / LAMPORTS_PER_SOL).toFixed(3)} SOL`);
+  console.log(`    SOL:     ${((await connection.getBalance(wallets.agentA.publicKey)) / LAMPORTS_PER_SOL).toFixed(3)} SOL`);
+  console.log(`    USDC:    ${usdcBalanceUi.toFixed(6)} USDC${usdcBalanceUi < 0.10 ? " ← needs top-up before running demo" : " ✓"}`);
   console.log("");
   console.log("  Agent B (executor):");
   console.log(`    Pubkey:  ${wallets.agentB.publicKey.toBase58()}`);

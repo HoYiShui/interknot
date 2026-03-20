@@ -5,13 +5,25 @@
 # Prerequisites:
 #   - Ollama installed and running: https://ollama.com
 #   - Model pulled: ollama pull llama3.1:8b
-#   - devnet USDC in Agent A's wallet (from faucet or transfer)
+#   - devnet USDC in Agent A's wallet (run setup first to get the address)
+#   - Get USDC: https://spl-token-faucet.com/?token-name=USDC-Dev
 #
 # Usage: ./demo/real-demo.sh
 set -e
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
+
+AGENT_B_PID=""
+
+cleanup() {
+  if [ -n "$AGENT_B_PID" ]; then
+    echo ""
+    echo "[cleanup] Stopping Agent B (PID $AGENT_B_PID)..."
+    kill "$AGENT_B_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
 
 echo ""
 echo "══════════════════════════════════════════════════"
@@ -33,31 +45,40 @@ echo ""
 
 # 1. Build
 echo "[build] Building SDK and CLI..."
-pnpm build
+pnpm build:sdk && pnpm build:cli
 echo ""
 
-# 2. Setup
-echo "[setup] Running demo setup (wallets + SOL airdrop)..."
+# 2. Setup (generates wallets, airdrops SOL, checks USDC)
+echo "[setup] Running demo setup..."
 pnpm --dir demo setup
 echo ""
 
 # 3. Start Agent B with real Ollama handler
-echo "[agent-b] Starting executor (Ollama/real mode) in background..."
+echo "[agent-b] Starting executor (Ollama/real mode)..."
 pnpm --dir demo agent-b --real &
 AGENT_B_PID=$!
-echo "  Agent B PID: $AGENT_B_PID"
-echo "  Waiting 5s for server to start..."
-sleep 5
+
+# Poll /health instead of sleeping blindly (timeout 30s)
+echo "  Waiting for task server to be ready..."
+READY=0
+for i in $(seq 1 30); do
+  if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+    echo "  ✓ Task server ready (${i}s)"
+    READY=1
+    break
+  fi
+  sleep 1
+done
+
+if [ "$READY" -eq 0 ]; then
+  echo "  ✗ Task server did not start within 30s. Check Agent B logs."
+  exit 1
+fi
 echo ""
 
 # 4. Run Agent A
 echo "[agent-a] Running delegator flow..."
 pnpm --dir demo agent-a
-
-# 5. Cleanup
-echo ""
-echo "[cleanup] Stopping Agent B..."
-kill $AGENT_B_PID 2>/dev/null || true
 
 echo ""
 echo "══════════════════════════════════════════════════"
