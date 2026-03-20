@@ -1,0 +1,23 @@
+{
+  "name": "@inter-knot/demo",
+  "version": "0.1.0",
+  "description": "Demo scripts for the Inter-Knot protocol",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "tsx src/setup.ts",
+    "agent-a": "tsx src/agent-a.ts",
+    "agent-b": "tsx src/agent-b.ts",
+    "agent-c": "tsx src/agent-c.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@inter-knot/sdk": "workspace:*",
+    "@solana/web3.js": "^1.98.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}
