@@ -82,9 +82,11 @@ export class DeliveryClient {
     let paymentTxHash: string | null = null;
     if (settlementRaw) {
       try {
-        // x402 PAYMENT-RESPONSE header is base64-encoded, not raw JSON
+        // x402 PAYMENT-RESPONSE header is base64-encoded, not raw JSON.
+        // Canonical SettleResponse uses `transaction` as the primary field.
         const decoded = decodePaymentResponseHeader(settlementRaw);
-        paymentTxHash = (decoded as any).txHash
+        paymentTxHash = (decoded as any).transaction
+          ?? (decoded as any).txHash
           ?? (decoded as any).transactionHash
           ?? (decoded as any).signature
           ?? null;
