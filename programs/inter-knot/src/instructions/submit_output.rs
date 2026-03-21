@@ -30,6 +30,7 @@ pub fn handle_submit_output(
         InterKnotError::DeliveryNotInputReady
     );
     require!(output_cid.len() <= MAX_CID_LEN, InterKnotError::CidTooLong);
+    require!(!output_cid.is_empty(), InterKnotError::CidEmpty);
 
     let clock = Clock::get()?;
 

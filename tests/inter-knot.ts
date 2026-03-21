@@ -1096,6 +1096,23 @@ describe("inter-knot", () => {
         expect(err.error.errorCode.code).to.equal("CidTooLong");
       }
     });
+
+    it("fails: empty CID", async () => {
+      const [delPda5] = deliveryPda(5);
+
+      try {
+        await program.methods
+          .submitInput(new BN(5), "")
+          .accounts({
+            delegator: authority.publicKey,
+            delivery: delPda5,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CidEmpty");
+      }
+    });
   });
 
   describe("submit_output", () => {
@@ -1237,6 +1254,24 @@ describe("inter-knot", () => {
         expect.fail("Should have thrown");
       } catch (err: any) {
         expect(err.error.errorCode.code).to.equal("CidTooLong");
+      }
+    });
+
+    it("fails: empty output CID", async () => {
+      const [delPda5] = deliveryPda(5);
+
+      try {
+        await program.methods
+          .submitOutput(new BN(5), "")
+          .accounts({
+            executor: executorB.publicKey,
+            delivery: delPda5,
+          })
+          .signers([executorB])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CidEmpty");
       }
     });
   });

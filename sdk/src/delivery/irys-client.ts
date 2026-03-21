@@ -2,20 +2,24 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { deriveSharedSecret, encrypt, decrypt } from "../crypto/ecdh";
 
 const IRYS_GATEWAY = "https://gateway.irys.xyz";
+const DEVNET_RPC = "https://api.devnet.solana.com";
 
 export interface IrysDeliveryConfig {
   wallet: Keypair;
   network?: "devnet" | "mainnet";
+  rpcUrl?: string;
 }
 
 export class IrysDeliveryClient {
   private readonly wallet: Keypair;
   private readonly network: "devnet" | "mainnet";
+  private readonly rpcUrl: string;
   private irysInstance: any | null = null;
 
   constructor(config: IrysDeliveryConfig) {
     this.wallet = config.wallet;
     this.network = config.network ?? "devnet";
+    this.rpcUrl = config.rpcUrl ?? (this.network === "devnet" ? DEVNET_RPC : "https://api.mainnet-beta.solana.com");
   }
 
   /** Lazily initialize the Irys uploader */
@@ -29,8 +33,11 @@ export class IrysDeliveryClient {
     const Builder = uploadMod.default ?? uploadMod.Uploader;
     const Solana = solanaMod.default ?? solanaMod.Solana;
 
+    // Pass secretKey as raw Uint8Array — the Irys Solana adapter
+    // accepts non-string wallets and internally converts via bs58
     const builder = (Builder as any)(Solana)
-      .withWallet(Buffer.from(this.wallet.secretKey).toString("base64"));
+      .withWallet(this.wallet.secretKey)
+      .withRpc(this.rpcUrl);
 
     if (this.network === "devnet") {
       builder.devnet();

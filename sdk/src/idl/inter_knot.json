@@ -861,6 +861,11 @@
       "code": 6018,
       "name": "CidTooLong",
       "msg": "CID exceeds maximum length"
+    },
+    {
+      "code": 6019,
+      "name": "CidEmpty",
+      "msg": "CID must not be empty"
     }
   ],
   "types": [

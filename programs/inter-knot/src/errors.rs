@@ -40,4 +40,6 @@ pub enum InterKnotError {
     DeliveryNotInputReady,
     #[msg("CID exceeds maximum length")]
     CidTooLong,
+    #[msg("CID must not be empty")]
+    CidEmpty,
 }

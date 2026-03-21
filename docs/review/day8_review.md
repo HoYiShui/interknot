@@ -88,3 +88,67 @@ pnpm --dir demo exec tsc --noEmit: passed
 | Day 7 — competition demo | **CLOSED** (three-agent competition verified on devnet, see Day 7 addendum) |
 
 Signed: **claude opus 4.6**
+
+---
+
+## Addendum on Review Evaluation
+
+Date: 2026-03-21
+
+I reviewed the Day 8 implementation against the updated Phase 2 architecture document and reran the local verification.
+
+## Findings (ordered by severity)
+
+1. **[High] `IrysDeliveryClient` does not currently initialize successfully on devnet**
+   - **Location:** `sdk/src/delivery/irys-client.ts`, `docs/plans/2026-03-21-phase2-architecture.md:477-479`, local installed Irys SDK at `node_modules/.pnpm/@irys+upload@0.0.15.../node_modules/@irys/upload/src/base.ts`
+   - **Issue:** The current implementation switches the uploader to `devnet`, but it does not configure a dev/testnet Solana RPC. The installed Irys SDK explicitly rejects `devnet.irys.xyz` without `providerUrl`.
+   - **Evidence:** I reproduced this locally by constructing `new IrysDeliveryClient({ wallet: Keypair.generate(), network: "devnet" })` and calling its lazy initializer. It failed with:
+     - `Using devnet.irys.xyz requires a dev/testnet RPC to be configured!`
+   - **Impact:** The Day 8 Irys delivery client is not merely untested; the current devnet code path is not runnable as written.
+
+2. **[High] `IrysDeliveryClient` passes the wallet in a format that does not match the installed Solana uploader's expectation**
+   - **Location:** `sdk/src/delivery/irys-client.ts:32-33`, local installed uploader at `node_modules/.pnpm/@irys+upload-solana@0.1.8.../node_modules/@irys/upload-solana/src/token.ts:52-57`
+   - **Issue:** The code passes `Buffer.from(this.wallet.secretKey).toString("base64")` into `.withWallet(...)`. The installed Solana uploader treats string wallets as **base58**, not base64, and decodes them with `bs58.decode(...)`.
+   - **Evidence:** I verified the installed source and reproduced the decoding mismatch locally. `bs58.decode(base64Secret)` fails with `Non-base58 character`.
+   - **Impact:** Even if the missing RPC were fixed, the current wallet handoff is still likely to fail during real Irys use.
+
+3. **[Medium] The Day 8 integration test required by the new architecture document is still missing**
+   - **Location:** `docs/plans/2026-03-21-phase2-architecture.md:474-480`
+   - **Issue:** The plan explicitly calls for:
+     - `upload encrypted -> submit CID on-chain -> fetch -> decrypt`
+   - **Current state:** The repository has:
+     - good Anchor tests for the on-chain `TaskDelivery` state machine
+     - a standalone crypto round-trip test in `sdk/test/crypto.test.ts`
+   - **But:** I did not find any repo-backed test that actually exercises `IrysDeliveryClient.upload()` / `download()` together with on-chain CID submission/retrieval.
+   - **Impact:** This gap is exactly why the two Irys runtime bugs above were able to land unnoticed.
+
+4. **[Medium] The delivery state machine accepts empty CIDs and can advance to ready states without usable content**
+   - **Location:** `programs/inter-knot/src/instructions/submit_input.rs:28-39`, `programs/inter-knot/src/instructions/submit_output.rs:28-39`, `tests/inter-knot.ts:897-898`
+   - **Issue:** The program validates CID length `<= 128`, but does not require non-empty values. An empty string therefore satisfies the current checks.
+   - **Impact:** A caller can move `Pending -> InputReady` or `InputReady -> OutputReady` while storing no meaningful Irys identifier at all, which weakens the semantics of the new on-chain delivery path.
+
+## Updated Verdict
+
+- **On-chain TaskDelivery implementation:** mostly sound
+- **Crypto helper implementation:** locally convincing
+- **Irys delivery path:** **not accepted yet**
+- **Day 8 overall against the Phase 2 architecture document:** **partially complete, but not yet satisfactory**
+
+The blocking issue is the same in all three views:
+- the architecture document requires a working Irys delivery path,
+- the code currently has real runtime issues in that path,
+- and the repository does not yet contain the integration test that was supposed to catch them.
+
+## Re-Verification
+
+- `pnpm --dir sdk build`: passed
+- `pnpm exec tsx sdk/test/crypto.test.ts`: passed
+- `anchor test`: passed (`50 passing`)
+- `pnpm --dir cli build`: passed
+- `pnpm --dir demo exec tsc --noEmit`: passed
+- Local Irys initialization repro:
+  - failed with `Using devnet.irys.xyz requires a dev/testnet RPC to be configured!`
+- Local wallet-format repro:
+  - `bs58.decode(base64Secret)` failed with `Non-base58 character`
+
+Signed: **gpt-5.3-codex**
