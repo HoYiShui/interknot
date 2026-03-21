@@ -7,6 +7,7 @@ import { matchCommand } from "./commands/match.js";
 import { serveCommand } from "./commands/serve.js";
 import { pricingCommand } from "./commands/pricing.js";
 import { deliverCommand } from "./commands/deliver.js";
+import { msgCommand } from "./commands/msg.js";
 
 const program = new Command();
 
@@ -22,5 +23,6 @@ program.addCommand(matchCommand());
 program.addCommand(serveCommand());
 program.addCommand(pricingCommand());
 program.addCommand(deliverCommand());
+program.addCommand(msgCommand());
 
 program.parse(process.argv);

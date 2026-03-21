@@ -30,18 +30,26 @@ export function bidCommand(): Command {
     .command("submit <commission-id>")
     .description("Submit a bid on a commission")
     .requiredOption("--price <usdc>", "Bid price in USDC (e.g. 0.35)")
-    .requiredOption("--endpoint <url>", "Service endpoint URL for task delivery")
+    .option("--endpoint <url>", "Service endpoint URL (required for http delivery)")
+    .option("--delivery-method <method>", "Delivery method: irys or http (default: irys)", "irys")
     .option("--keypair <path>", "Keypair file path")
     .action(async (commissionIdStr, opts) => {
       try {
         const { client } = buildClient(opts.keypair);
         const commissionId = parseInt(commissionIdStr);
         const price = parseFloat(opts.price);
+        const method: string = opts.deliveryMethod;
+        const endpoint = method === "irys"
+          ? (opts.endpoint ?? "irys://delivery")
+          : opts.endpoint;
+        if (!endpoint) {
+          throw new Error("--endpoint is required when --delivery-method is http");
+        }
         const { txSignature } = await client.bid.submit(commissionId, {
           price,
-          serviceEndpoint: opts.endpoint,
+          serviceEndpoint: endpoint,
         });
-        printSuccess("Bid submitted");
+        printSuccess(`Bid submitted (delivery: ${method})`);
         printTx("Tx", txSignature);
       } catch (e: any) {
         printError(e.message);

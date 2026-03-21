@@ -8,11 +8,16 @@
     "demo:setup": "tsx src/setup.ts",
     "agent-a": "tsx src/agent-a.ts",
     "agent-b": "tsx src/agent-b.ts",
-    "agent-c": "tsx src/agent-c.ts"
+    "agent-c": "tsx src/agent-c.ts",
+    "agent-delegator": "tsx src/agent-delegator.ts",
+    "agent-executor": "tsx src/agent-executor.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
     "@inter-knot/sdk": "workspace:*",
+    "@mariozechner/pi-agent-core": "^0.61.1",
+    "@mariozechner/pi-ai": "^0.61.1",
+    "@sinclair/typebox": "^0.34.48",
     "@solana/spl-token": "^0.4.9",
     "@solana/web3.js": "^1.98.0"
   },
