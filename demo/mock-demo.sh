@@ -4,7 +4,7 @@
 #
 # Prerequisites:
 #   - devnet USDC in Agent A's wallet (run setup first to get the address)
-#   - Get USDC: https://spl-token-faucet.com/?token-name=USDC-Dev
+#   - Get USDC: https://faucet.circle.com (select Solana → Devnet)
 #
 # Usage: ./demo/mock-demo.sh
 set -e

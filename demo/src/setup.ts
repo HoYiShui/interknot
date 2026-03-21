@@ -11,7 +11,7 @@
  * Run: pnpm --dir demo demo:setup [--use-existing-keypair]
  */
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
-import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
+import { getAccount, getAssociatedTokenAddress, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -32,7 +32,7 @@ import {
 import { existsSync } from "node:fs";
 
 const USE_EXISTING = process.argv.includes("--use-existing-keypair");
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 async function main() {
   banner("Inter-Knot Demo Setup");
@@ -126,8 +126,28 @@ async function main() {
     ok(`Initialized — tx: ${txSig}`);
   }
 
-  // Step 4: Check Agent A's devnet USDC balance
-  step(4, TOTAL_STEPS, "Checking Agent A devnet USDC balance...");
+  // Step 4: Ensure USDC ATAs exist for all agents (needed for x402 settlement)
+  step(4, TOTAL_STEPS, "Ensuring USDC token accounts exist...");
+  for (const [name, kp] of [
+    ["Agent A", wallets.agentA],
+    ["Agent B", wallets.agentB],
+    ["Agent C", wallets.agentC],
+  ] as const) {
+    try {
+      await getOrCreateAssociatedTokenAccount(
+        connection,
+        wallets.agentA, // fee payer
+        DEVNET_USDC_MINT,
+        kp.publicKey,
+      );
+      ok(`${name} USDC ATA ready`);
+    } catch (e: any) {
+      console.log(`  ⚠  Could not create ${name} ATA: ${e.message}`);
+    }
+  }
+
+  // Step 5: Check Agent A's devnet USDC balance
+  step(5, TOTAL_STEPS, "Checking Agent A devnet USDC balance...");
   let usdcBalanceUi = 0;
   try {
     const ata = await getAssociatedTokenAddress(DEVNET_USDC_MINT, wallets.agentA.publicKey);
@@ -145,8 +165,8 @@ async function main() {
     console.log("  │                                                          │");
     console.log(`  │  Agent A: ${wallets.agentA.publicKey.toBase58()}  │`);
     console.log("  │                                                          │");
-    console.log("  │  Option 1 (easiest if you have Phantom):                 │");
-    console.log("  │    https://spl-token-faucet.com/?token-name=USDC-Dev     │");
+    console.log("  │  Option 1 (easiest):                                  │");
+    console.log("  │    https://faucet.circle.com (Solana → Devnet)          │");
     console.log("  │                                                          │");
     console.log("  │  Option 2 (use your own wallet as Agent A):              │");
     console.log("  │    pnpm --dir demo demo:setup --use-existing-keypair      │");
@@ -157,8 +177,8 @@ async function main() {
     console.log("");
   }
 
-  // Step 5: Print summary
-  step(5, TOTAL_STEPS, "Setup complete!");
+  // Step 6: Print summary
+  step(6, TOTAL_STEPS, "Setup complete!");
   console.log("");
   console.log("  Agent A (delegator):");
   console.log(`    Pubkey:  ${wallets.agentA.publicKey.toBase58()}`);

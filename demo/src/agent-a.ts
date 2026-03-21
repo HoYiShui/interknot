@@ -31,6 +31,8 @@ import {
 const X402_NETWORK = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
 const POLL_INTERVAL_MS = 3000;
 const MAX_WAIT_BIDS_MS = 60_000;
+const MIN_BIDS = parseInt(process.env.MIN_BIDS ?? "1", 10);
+const BID_GRACE_MS = 10_000; // after reaching MIN_BIDS, wait a bit for stragglers
 
 async function main() {
   banner("Agent A — Delegator");
@@ -67,7 +69,16 @@ async function main() {
 
   while (Date.now() < deadline) {
     bids = await client.query.getBidsSortedByPrice(commissionId);
-    if (bids.length > 0) break;
+    if (bids.length >= MIN_BIDS) {
+      // Grace period: keep polling briefly for additional bids
+      console.log(`  Found ${bids.length} bid(s), waiting ${BID_GRACE_MS / 1000}s for more...`);
+      const graceEnd = Date.now() + BID_GRACE_MS;
+      while (Date.now() < graceEnd) {
+        await sleep(POLL_INTERVAL_MS);
+        bids = await client.query.getBidsSortedByPrice(commissionId);
+      }
+      break;
+    }
     process.stdout.write(".");
     await sleep(POLL_INTERVAL_MS);
   }
