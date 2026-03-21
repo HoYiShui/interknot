@@ -859,4 +859,435 @@ describe("inter-knot", () => {
       expect(config.commissionCount.toNumber()).to.equal(5);
     });
   });
+
+  // ═══════════════════════════════════════════
+  // Day 8: Delivery instructions
+  // ═══════════════════════════════════════════
+
+  // Helper: derive delivery PDA
+  function deliveryPda(commissionId: number): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from("delivery"), new BN(commissionId).toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+  }
+
+  describe("create_delivery", () => {
+    // Commission #1 is in Matched status (selected_executor = executorC)
+    // Commission #0 is Completed, #2 is Cancelled, #3 is Open, #4 is Completed
+
+    it("creates delivery for matched commission #1", async () => {
+      const [commPda] = commissionPda(1);
+      const [delPda] = deliveryPda(1);
+
+      await program.methods
+        .createDelivery(new BN(1))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda,
+          delivery: delPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      const delivery = await program.account.taskDelivery.fetch(delPda);
+      expect(delivery.commissionId.toNumber()).to.equal(1);
+      expect(delivery.delegator.toBase58()).to.equal(authority.publicKey.toBase58());
+      expect(delivery.executor.toBase58()).to.equal(executorC.publicKey.toBase58());
+      expect(delivery.inputCid).to.equal("");
+      expect(delivery.outputCid).to.equal("");
+      expect(JSON.stringify(delivery.status)).to.equal(JSON.stringify({ pending: {} }));
+      expect(delivery.createdAt).to.not.be.null;
+      expect(delivery.updatedAt).to.not.be.null;
+    });
+
+    it("fails: create delivery for open commission #3", async () => {
+      const [commPda] = commissionPda(3);
+      const [delPda] = deliveryPda(3);
+
+      try {
+        await program.methods
+          .createDelivery(new BN(3))
+          .accounts({
+            delegator: authority.publicKey,
+            commission: commPda,
+            delivery: delPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CommissionNotMatched");
+      }
+    });
+
+    it("fails: create delivery for completed commission #0", async () => {
+      const [commPda] = commissionPda(0);
+      const [delPda] = deliveryPda(0);
+
+      try {
+        await program.methods
+          .createDelivery(new BN(0))
+          .accounts({
+            delegator: authority.publicKey,
+            commission: commPda,
+            delivery: delPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CommissionNotMatched");
+      }
+    });
+
+    it("fails: non-delegator creates delivery", async () => {
+      // Need a fresh matched commission. Create #5, bid, select.
+      const [commPda5] = commissionPda(5);
+      await program.methods
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+        .accounts({
+          delegator: authority.publicKey,
+          config: configPda,
+          commission: commPda5,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      const [bidPda5] = bidPda(5, executorB.publicKey);
+      await program.methods
+        .submitBid(new BN(5), new BN(200_000), "http://localhost:8080/tasks")
+        .accounts({
+          executor: executorB.publicKey,
+          commission: commPda5,
+          bid: bidPda5,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([executorB])
+        .rpc();
+
+      await program.methods
+        .selectBid(new BN(5))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda5,
+          bid: bidPda5,
+        })
+        .rpc();
+
+      const [delPda5] = deliveryPda(5);
+      try {
+        await program.methods
+          .createDelivery(new BN(5))
+          .accounts({
+            delegator: executorB.publicKey,
+            commission: commPda5,
+            delivery: delPda5,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([executorB])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("UnauthorizedDelegator");
+      }
+    });
+
+    it("fails: create delivery twice for same commission", async () => {
+      const [commPda] = commissionPda(1);
+      const [delPda] = deliveryPda(1);
+
+      try {
+        await program.methods
+          .createDelivery(new BN(1))
+          .accounts({
+            delegator: authority.publicKey,
+            commission: commPda,
+            delivery: delPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        // init constraint fails because PDA already exists
+        expect(err).to.exist;
+      }
+    });
+  });
+
+  describe("submit_input", () => {
+    it("delegator submits input CID for commission #1", async () => {
+      const [delPda] = deliveryPda(1);
+      const inputCid = "irys://abc123def456";
+
+      await program.methods
+        .submitInput(new BN(1), inputCid)
+        .accounts({
+          delegator: authority.publicKey,
+          delivery: delPda,
+        })
+        .rpc();
+
+      const delivery = await program.account.taskDelivery.fetch(delPda);
+      expect(delivery.inputCid).to.equal(inputCid);
+      expect(JSON.stringify(delivery.status)).to.equal(JSON.stringify({ inputReady: {} }));
+    });
+
+    it("fails: submit input twice (status is InputReady, not Pending)", async () => {
+      const [delPda] = deliveryPda(1);
+
+      try {
+        await program.methods
+          .submitInput(new BN(1), "irys://another-cid")
+          .accounts({
+            delegator: authority.publicKey,
+            delivery: delPda,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("DeliveryNotPending");
+      }
+    });
+
+    it("fails: executor tries to submit input", async () => {
+      // Create delivery for commission #5 (matched, executor = executorB)
+      const [commPda5] = commissionPda(5);
+      const [delPda5] = deliveryPda(5);
+
+      await program.methods
+        .createDelivery(new BN(5))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda5,
+          delivery: delPda5,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      try {
+        await program.methods
+          .submitInput(new BN(5), "irys://bad-input")
+          .accounts({
+            delegator: executorB.publicKey,
+            delivery: delPda5,
+          })
+          .signers([executorB])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("UnauthorizedDelegator");
+      }
+    });
+
+    it("fails: CID too long (>128 chars)", async () => {
+      const [delPda5] = deliveryPda(5);
+
+      try {
+        await program.methods
+          .submitInput(new BN(5), "x".repeat(129))
+          .accounts({
+            delegator: authority.publicKey,
+            delivery: delPda5,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CidTooLong");
+      }
+    });
+  });
+
+  describe("submit_output", () => {
+    it("executor submits output CID for commission #1", async () => {
+      const [delPda] = deliveryPda(1);
+      const outputCid = "irys://result789xyz";
+
+      await program.methods
+        .submitOutput(new BN(1), outputCid)
+        .accounts({
+          executor: executorC.publicKey,
+          delivery: delPda,
+        })
+        .signers([executorC])
+        .rpc();
+
+      const delivery = await program.account.taskDelivery.fetch(delPda);
+      expect(delivery.outputCid).to.equal(outputCid);
+      expect(JSON.stringify(delivery.status)).to.equal(JSON.stringify({ outputReady: {} }));
+    });
+
+    it("fails: submit output twice (status is OutputReady, not InputReady)", async () => {
+      const [delPda] = deliveryPda(1);
+
+      try {
+        await program.methods
+          .submitOutput(new BN(1), "irys://another-output")
+          .accounts({
+            executor: executorC.publicKey,
+            delivery: delPda,
+          })
+          .signers([executorC])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("DeliveryNotInputReady");
+      }
+    });
+
+    it("fails: delegator tries to submit output", async () => {
+      // Commission #5 delivery is in Pending. Submit input first.
+      const [delPda5] = deliveryPda(5);
+      await program.methods
+        .submitInput(new BN(5), "irys://input-for-5")
+        .accounts({
+          delegator: authority.publicKey,
+          delivery: delPda5,
+        })
+        .rpc();
+
+      try {
+        await program.methods
+          .submitOutput(new BN(5), "irys://output-for-5")
+          .accounts({
+            executor: authority.publicKey,
+            delivery: delPda5,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("UnauthorizedExecutor");
+      }
+    });
+
+    it("fails: submit output before input (status is Pending)", async () => {
+      // We need a delivery still in Pending status.
+      // Create commission #6, bid, select, create delivery.
+      const [commPda6] = commissionPda(6);
+      await program.methods
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+        .accounts({
+          delegator: authority.publicKey,
+          config: configPda,
+          commission: commPda6,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      const [bidPda6] = bidPda(6, executorB.publicKey);
+      await program.methods
+        .submitBid(new BN(6), new BN(200_000), "http://localhost:8080/tasks")
+        .accounts({
+          executor: executorB.publicKey,
+          commission: commPda6,
+          bid: bidPda6,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([executorB])
+        .rpc();
+
+      await program.methods
+        .selectBid(new BN(6))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda6,
+          bid: bidPda6,
+        })
+        .rpc();
+
+      const [delPda6] = deliveryPda(6);
+      await program.methods
+        .createDelivery(new BN(6))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda6,
+          delivery: delPda6,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      try {
+        await program.methods
+          .submitOutput(new BN(6), "irys://output-no-input")
+          .accounts({
+            executor: executorB.publicKey,
+            delivery: delPda6,
+          })
+          .signers([executorB])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("DeliveryNotInputReady");
+      }
+    });
+
+    it("fails: output CID too long", async () => {
+      // Commission #5 delivery is in InputReady. Executor is executorB.
+      const [delPda5] = deliveryPda(5);
+
+      try {
+        await program.methods
+          .submitOutput(new BN(5), "x".repeat(129))
+          .accounts({
+            executor: executorB.publicKey,
+            delivery: delPda5,
+          })
+          .signers([executorB])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("CidTooLong");
+      }
+    });
+  });
+
+  describe("delivery full lifecycle", () => {
+    // Commission #5: delivery exists, InputReady status, executor = executorB
+    // Let's do a clean complete flow.
+
+    it("full delivery flow: create → input → output → complete", async () => {
+      // Use commission #6 (matched, executor = executorB, delivery in Pending)
+      const [delPda6] = deliveryPda(6);
+      const [commPda6] = commissionPda(6);
+
+      // Submit input
+      await program.methods
+        .submitInput(new BN(6), "irys://task-data-for-6")
+        .accounts({
+          delegator: authority.publicKey,
+          delivery: delPda6,
+        })
+        .rpc();
+
+      let delivery = await program.account.taskDelivery.fetch(delPda6);
+      expect(JSON.stringify(delivery.status)).to.equal(JSON.stringify({ inputReady: {} }));
+
+      // Submit output
+      await program.methods
+        .submitOutput(new BN(6), "irys://result-data-for-6")
+        .accounts({
+          executor: executorB.publicKey,
+          delivery: delPda6,
+        })
+        .signers([executorB])
+        .rpc();
+
+      delivery = await program.account.taskDelivery.fetch(delPda6);
+      expect(JSON.stringify(delivery.status)).to.equal(JSON.stringify({ outputReady: {} }));
+      expect(delivery.inputCid).to.equal("irys://task-data-for-6");
+      expect(delivery.outputCid).to.equal("irys://result-data-for-6");
+
+      // Complete commission
+      await program.methods
+        .completeCommission(new BN(6))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda6,
+        })
+        .rpc();
+
+      const commission = await program.account.commission.fetch(commPda6);
+      expect(JSON.stringify(commission.status)).to.equal(JSON.stringify({ completed: {} }));
+    });
+  });
 });

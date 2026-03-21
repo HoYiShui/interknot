@@ -32,4 +32,12 @@ pub enum InterKnotError {
     CommissionCountOverflow,
     #[msg("Bid counter overflow")]
     BidCountOverflow,
+    #[msg("Delivery already exists for this commission")]
+    DeliveryAlreadyExists,
+    #[msg("Delivery is not in Pending status")]
+    DeliveryNotPending,
+    #[msg("Delivery is not in InputReady status")]
+    DeliveryNotInputReady,
+    #[msg("CID exceeds maximum length")]
+    CidTooLong,
 }

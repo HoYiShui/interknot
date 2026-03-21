@@ -70,4 +70,27 @@ pub mod inter_knot {
     ) -> Result<()> {
         instructions::withdraw_bid::handle_withdraw_bid(ctx, commission_id)
     }
+
+    pub fn create_delivery(
+        ctx: Context<CreateDelivery>,
+        commission_id: u64,
+    ) -> Result<()> {
+        instructions::create_delivery::handle_create_delivery(ctx, commission_id)
+    }
+
+    pub fn submit_input(
+        ctx: Context<SubmitInput>,
+        commission_id: u64,
+        input_cid: String,
+    ) -> Result<()> {
+        instructions::submit_input::handle_submit_input(ctx, commission_id, input_cid)
+    }
+
+    pub fn submit_output(
+        ctx: Context<SubmitOutput>,
+        commission_id: u64,
+        output_cid: String,
+    ) -> Result<()> {
+        instructions::submit_output::handle_submit_output(ctx, commission_id, output_cid)
+    }
 }

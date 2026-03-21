@@ -18,8 +18,15 @@ export {
   OllamaTaskHandler,
 } from "./server/handlers";
 
-// Delivery (delegator side)
+// Delivery — x402 (HTTP path)
 export { DeliveryClient, DeliveryClientConfig, DeliveryResult, createPaidFetch } from "./delivery/x402-client";
+
+// Delivery — on-chain (Irys path)
+export { OnChainDeliveryClient, TaskDelivery, DeliveryStatus } from "./delivery/onchain-client";
+export { IrysDeliveryClient, IrysDeliveryConfig } from "./delivery/irys-client";
+
+// Crypto
+export { deriveSharedSecret, encrypt, decrypt } from "./crypto/ecdh";
 
 // Pricing
 export { estimateComputeCost, computeLlmPricing, ComputeLlmSpec } from "./pricing/compute";
@@ -34,3 +41,4 @@ export {
 } from "./types/commission";
 export { Bid, BidStatus, parseBidStatus } from "./types/bid";
 export { TaskSpec, ComputeLlmInferenceSpec } from "./types/task-spec";
+

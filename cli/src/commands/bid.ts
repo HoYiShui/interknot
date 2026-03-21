@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { Bid } from "@inter-knot/sdk";
 import { buildClient } from "../utils/sdk-client.js";
 import { formatBid, printSuccess, printError, printTx } from "../utils/display.js";
 
@@ -18,7 +19,7 @@ export function bidCommand(): Command {
           console.log("No bids found for this commission.");
           return;
         }
-        bids.forEach((b, i) => formatBid(b, i));
+        bids.forEach((b: Bid, i: number) => formatBid(b, i));
       } catch (e: any) {
         printError(e.message);
         process.exit(1);

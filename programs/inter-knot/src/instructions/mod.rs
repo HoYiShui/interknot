@@ -5,6 +5,9 @@ pub mod select_bid;
 pub mod complete_commission;
 pub mod cancel_commission;
 pub mod withdraw_bid;
+pub mod create_delivery;
+pub mod submit_input;
+pub mod submit_output;
 
 pub use initialize::*;
 pub use create_commission::*;
@@ -13,3 +16,6 @@ pub use select_bid::*;
 pub use complete_commission::*;
 pub use cancel_commission::*;
 pub use withdraw_bid::*;
+pub use create_delivery::*;
+pub use submit_input::*;
+pub use submit_output::*;

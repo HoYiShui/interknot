@@ -110,6 +110,10 @@ export class InterKnot {
       fetch: (address: PublicKey) => Promise<any>;
       all: () => Promise<{ publicKey: PublicKey; account: any }[]>;
     };
+    taskDelivery: {
+      fetch: (address: PublicKey) => Promise<any>;
+      all: () => Promise<{ publicKey: PublicKey; account: any }[]>;
+    };
   };
 
   /** Derive the PlatformConfig PDA */
@@ -140,6 +144,18 @@ export class InterKnot {
         Buffer.from("bid"),
         new BN(commissionId).toArrayLike(Buffer, "le", 8),
         executor.toBuffer(),
+      ],
+      this.programId
+    );
+    return pda;
+  }
+
+  /** Derive a TaskDelivery PDA */
+  deliveryPda(commissionId: number): PublicKey {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("delivery"),
+        new BN(commissionId).toArrayLike(Buffer, "le", 8),
       ],
       this.programId
     );

@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { Commission } from "@inter-knot/sdk";
 import { buildClient } from "../utils/sdk-client.js";
 import { formatCommission, printSuccess, printError, printTx } from "../utils/display.js";
 
@@ -62,7 +63,7 @@ export function commissionCommand(): Command {
           console.log("No open commissions found.");
           return;
         }
-        commissions.forEach((c, i) => formatCommission(c, i));
+        commissions.forEach((c: Commission, i: number) => formatCommission(c, i));
       } catch (e: any) {
         printError(e.message);
         process.exit(1);

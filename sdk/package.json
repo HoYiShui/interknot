@@ -4,6 +4,7 @@
   "description": "TypeScript SDK for the Inter-Knot protocol",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist"
@@ -11,6 +12,11 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
     "@hono/node-server": "^1.19.11",
+    "@irys/upload": "^0.0.15",
+    "@irys/upload-solana": "^0.1.8",
+    "@noble/ciphers": "^2.1.1",
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
     "@node-rs/xxhash": "^1.7.6",
     "@solana/kit": "^6.3.1",
     "@solana/web3.js": "^1.98.0",

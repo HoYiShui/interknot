@@ -221,6 +221,87 @@
       ]
     },
     {
+      "name": "create_delivery",
+      "discriminator": [
+        68,
+        31,
+        6,
+        31,
+        5,
+        49,
+        46,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "delegator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "commission",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  109,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "delivery",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  105,
+                  118,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "initialize",
       "discriminator": [
         175,
@@ -447,6 +528,114 @@
       ]
     },
     {
+      "name": "submit_input",
+      "discriminator": [
+        56,
+        184,
+        154,
+        91,
+        173,
+        63,
+        21,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "delegator",
+          "signer": true
+        },
+        {
+          "name": "delivery",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  105,
+                  118,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_id",
+          "type": "u64"
+        },
+        {
+          "name": "input_cid",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "submit_output",
+      "discriminator": [
+        234,
+        190,
+        131,
+        151,
+        218,
+        255,
+        154,
+        105
+      ],
+      "accounts": [
+        {
+          "name": "executor",
+          "signer": true
+        },
+        {
+          "name": "delivery",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  105,
+                  118,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "commission_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_id",
+          "type": "u64"
+        },
+        {
+          "name": "output_cid",
+          "type": "string"
+        }
+      ]
+    },
+    {
       "name": "withdraw_bid",
       "discriminator": [
         110,
@@ -562,6 +751,19 @@
         230,
         160
       ]
+    },
+    {
+      "name": "TaskDelivery",
+      "discriminator": [
+        228,
+        60,
+        206,
+        118,
+        107,
+        97,
+        169,
+        14
+      ]
     }
   ],
   "errors": [
@@ -639,6 +841,26 @@
       "code": 6014,
       "name": "BidCountOverflow",
       "msg": "Bid counter overflow"
+    },
+    {
+      "code": 6015,
+      "name": "DeliveryAlreadyExists",
+      "msg": "Delivery already exists for this commission"
+    },
+    {
+      "code": 6016,
+      "name": "DeliveryNotPending",
+      "msg": "Delivery is not in Pending status"
+    },
+    {
+      "code": 6017,
+      "name": "DeliveryNotInputReady",
+      "msg": "Delivery is not in InputReady status"
+    },
+    {
+      "code": 6018,
+      "name": "CidTooLong",
+      "msg": "CID exceeds maximum length"
     }
   ],
   "types": [
@@ -880,6 +1102,26 @@
       }
     },
     {
+      "name": "DeliveryStatus",
+      "repr": {
+        "kind": "rust"
+      },
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "InputReady"
+          },
+          {
+            "name": "OutputReady"
+          }
+        ]
+      }
+    },
+    {
       "name": "PlatformConfig",
       "type": {
         "kind": "struct",
@@ -911,6 +1153,81 @@
               "Platform fee in basis points. MVP: 0"
             ],
             "type": "u16"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaskDelivery",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "commission_id",
+            "docs": [
+              "Commission this delivery is for"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "delegator",
+            "docs": [
+              "Delegator's wallet"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "executor",
+            "docs": [
+              "Matched executor's wallet"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "input_cid",
+            "docs": [
+              "Irys transaction ID for encrypted task input"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "output_cid",
+            "docs": [
+              "Irys transaction ID for encrypted task output"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "Delivery status"
+            ],
+            "type": {
+              "defined": {
+                "name": "DeliveryStatus"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "docs": [
+              "Creation timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "docs": [
+              "Last update timestamp"
+            ],
+            "type": "i64"
           },
           {
             "name": "bump",
