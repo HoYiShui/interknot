@@ -25,3 +25,6 @@ claude.md
 
 # Claude Code
 .claude/
+
+# Demo generated files
+demo/.demo-wallets.json
