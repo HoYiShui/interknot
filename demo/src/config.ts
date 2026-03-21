@@ -61,9 +61,17 @@ export async function airdropIfNeeded(
   const balance = await connection.getBalance(pubkey);
   if (balance < minLamports) {
     console.log(`  Airdropping 2 SOL to ${pubkey.toBase58().slice(0, 8)}...`);
-    const sig = await connection.requestAirdrop(pubkey, 2 * LAMPORTS_PER_SOL);
-    await connection.confirmTransaction(sig, "confirmed");
-    await sleep(1000);
+    try {
+      const sig = await connection.requestAirdrop(pubkey, 2 * LAMPORTS_PER_SOL);
+      await connection.confirmTransaction(sig, "confirmed");
+      await sleep(1000);
+    } catch (e: any) {
+      // Devnet airdrop endpoint is rate-limited and unreliable.
+      // Print the address and let the user top up via the web faucet.
+      console.log(`  ⚠  Airdrop failed (devnet rate limit): ${e.message ?? e}`);
+      console.log(`     Top up manually at https://faucet.solana.com`);
+      console.log(`     Address: ${pubkey.toBase58()}`);
+    }
   }
 }
 
