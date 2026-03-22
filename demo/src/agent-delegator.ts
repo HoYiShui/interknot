@@ -3,15 +3,19 @@
  * selects bids, sends tasks via Irys, and retrieves results.
  *
  * Usage:
- *   ENV_FILE=.agent.env \
  *   SYSTEM_PROMPT_FILE=demo/prompts/delegator.md \
+ *   MODEL_PROVIDER=openai \
+ *   MODEL=gpt-5.3-codex \
  *   KEYPAIR=/tmp/ik-a.json \
  *   TASK_PROMPT="Explain quantum computing in one sentence." \
  *   pnpm --dir demo exec tsx src/agent-delegator.ts
  *
- * ENV_FILE       Path to a KEY=VALUE file containing ANTHROPIC_API_KEY (default: .agent.env)
+ * ENV_FILE       Path to a KEY=VALUE env file (default: .agent.env)
  * SYSTEM_PROMPT_FILE  Path to the system prompt template (default: demo/prompts/delegator.md)
  *                     Placeholders: {{KEYPAIR}}, {{TASK_PROMPT}}
+ * MODEL_PROVIDER      Model provider, e.g. anthropic or openai (default: anthropic)
+ * MODEL               Model ID for the chosen provider (default depends on provider)
+ * BASE_URL            Optional provider base URL override (e.g. proxy endpoint)
  */
 import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel } from "@mariozechner/pi-ai";
@@ -37,19 +41,35 @@ function loadEnvFile(filePath: string): void {
   }
 }
 
-const ENV_FILE = process.env.ENV_FILE
-  ? resolve(process.cwd(), process.env.ENV_FILE)
-  : resolve(__dirname, "../../.agent.env");
+const DEFAULT_ENV_FILE = resolve(__dirname, "../../.agent.env");
+const ENV_FILE = (() => {
+  if (!process.env.ENV_FILE) return DEFAULT_ENV_FILE;
+  const fromCwd = resolve(process.cwd(), process.env.ENV_FILE);
+  if (existsSync(fromCwd)) return fromCwd;
+  const fromRepoRoot = resolve(__dirname, "../../", process.env.ENV_FILE);
+  if (existsSync(fromRepoRoot)) return fromRepoRoot;
+  return fromCwd;
+})();
 loadEnvFile(ENV_FILE);
 
 // ── Config ────────────────────────────────────────────────────────
 const KEYPAIR = process.env.KEYPAIR ?? "~/.config/solana/id.json";
 const TASK_PROMPT = process.env.TASK_PROMPT ?? "Translate to Japanese: Hello, how are you today?";
-const MODEL = process.env.MODEL ?? "claude-sonnet-4-20250514";
+const MODEL_PROVIDER = process.env.MODEL_PROVIDER ?? process.env.PROVIDER ?? "anthropic";
+const DEFAULT_MODEL_BY_PROVIDER: Record<string, string> = {
+  anthropic: "claude-sonnet-4-20250514",
+  openai: "gpt-5.3-codex",
+};
+const MODEL = process.env.MODEL ?? DEFAULT_MODEL_BY_PROVIDER[MODEL_PROVIDER] ?? "claude-sonnet-4-20250514";
 
 // ── Validate required config ──────────────────────────────────────
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error("Error: ANTHROPIC_API_KEY is not set.");
+const REQUIRED_API_KEY_ENV_BY_PROVIDER: Record<string, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+};
+const requiredApiKeyEnv = REQUIRED_API_KEY_ENV_BY_PROVIDER[MODEL_PROVIDER];
+if (requiredApiKeyEnv && !process.env[requiredApiKeyEnv]) {
+  console.error(`Error: ${requiredApiKeyEnv} is not set for provider "${MODEL_PROVIDER}".`);
   console.error(`  Looked for ENV_FILE: ${ENV_FILE}`);
   console.error("  Create .agent.env from .agent.env.example and fill in your API key.");
   process.exit(1);
@@ -100,18 +120,28 @@ const bashTool = {
 
 // ── Main ──────────────────────────────────────────────────────────
 async function main() {
+  const baseUrlOverride =
+    process.env.BASE_URL ||
+    (MODEL_PROVIDER === "anthropic" ? process.env.ANTHROPIC_BASE_URL : undefined) ||
+    (MODEL_PROVIDER === "openai" ? process.env.OPENAI_BASE_URL : undefined);
+
   console.log("=== Inter-Knot Delegator Agent ===");
+  console.log(`Provider: ${MODEL_PROVIDER}`);
+  console.log(`Model:    ${MODEL}`);
   console.log(`Task:    ${TASK_PROMPT}`);
   console.log(`Keypair: ${KEYPAIR}`);
   console.log(`Prompt:  ${SYSTEM_PROMPT_FILE}`);
+  if (baseUrlOverride) {
+    console.log(`Base URL: ${baseUrlOverride}`);
+  }
   console.log();
 
-  const model = getModel("anthropic", MODEL as any);
+  const model = getModel(MODEL_PROVIDER as any, MODEL as any);
   if (!model) {
-    throw new Error(`Unknown model "${MODEL}" for provider "anthropic". Check MODEL in .agent.env.`);
+    throw new Error(`Unknown model "${MODEL}" for provider "${MODEL_PROVIDER}". Check MODEL_PROVIDER/MODEL in .agent.env.`);
   }
-  if (process.env.ANTHROPIC_BASE_URL) {
-    (model as any).baseUrl = process.env.ANTHROPIC_BASE_URL;
+  if (baseUrlOverride) {
+    (model as any).baseUrl = baseUrlOverride;
   }
 
   const agent = new Agent({
