@@ -19,6 +19,7 @@
     "@noble/hashes": "^2.0.1",
     "@node-rs/xxhash": "^1.7.6",
     "@solana/kit": "^6.3.1",
+    "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.0",
     "@x402/core": "^2.7.0",
     "@x402/fetch": "^2.7.0",

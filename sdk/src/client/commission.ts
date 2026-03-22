@@ -1,4 +1,10 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  getOrCreateAssociatedTokenAccount,
+  createTransferInstruction,
+  getAssociatedTokenAddress,
+} from "@solana/spl-token";
+import { Transaction } from "@solana/web3.js";
 import BN from "bn.js";
 import * as crypto from "crypto";
 
@@ -105,6 +111,53 @@ export class CommissionClient {
       })
       .rpc();
     return { txSignature };
+  }
+
+  async pay(commissionId: number): Promise<{
+    txSignature: string;
+    amount: BN;
+    executor: PublicKey;
+  }> {
+    const commission = await this.get(commissionId);
+
+    if (!commission.selectedExecutor) {
+      throw new Error(`Commission #${commissionId} has no selected executor`);
+    }
+    if (!commission.selectedBidPrice) {
+      throw new Error(`Commission #${commissionId} has no selected bid price`);
+    }
+
+    // Read USDC mint from on-chain config
+    const config = await this.ik.accounts.platformConfig.fetch(this.ik.configPda);
+    const usdcMint = (config as any).usdcMint as PublicKey;
+
+    const delegator = this.ik.wallet;
+    const executor = commission.selectedExecutor;
+    const amount = commission.selectedBidPrice;
+
+    // Get or create delegator's ATA (must already exist and be funded)
+    const delegatorAta = await getAssociatedTokenAddress(usdcMint, delegator.publicKey);
+
+    // Get or create executor's ATA (delegator pays rent if new)
+    const executorAtaAccount = await getOrCreateAssociatedTokenAccount(
+      this.ik.provider.connection,
+      delegator,
+      usdcMint,
+      executor
+    );
+
+    const transferIx = createTransferInstruction(
+      delegatorAta,
+      executorAtaAccount.address,
+      delegator.publicKey,
+      BigInt(amount.toString())
+    );
+
+    const tx = new Transaction().add(transferIx);
+    const txSignature = await this.ik.provider.connection.sendTransaction(tx, [delegator]);
+    await this.ik.provider.connection.confirmTransaction(txSignature, "confirmed");
+
+    return { txSignature, amount, executor };
   }
 
   watch(params: {

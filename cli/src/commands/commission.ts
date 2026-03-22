@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { Commission } from "@inter-knot/sdk";
+import { Commission, lamportsToUsdc } from "@inter-knot/sdk";
 import { buildClient } from "../utils/sdk-client.js";
-import { formatCommission, printSuccess, printError, printTx } from "../utils/display.js";
+import { formatCommission, formatUsdc, printSuccess, printError, printTx } from "../utils/display.js";
 
 export function commissionCommand(): Command {
   const cmd = new Command("commission").description("Manage commissions (delegator side)");
@@ -89,6 +89,23 @@ export function commissionCommand(): Command {
           }
           commissions.forEach((c: Commission, i: number) => formatCommission(c, i));
         }
+      } catch (e: any) {
+        printError(e.message);
+        process.exit(1);
+      }
+    });
+
+  cmd
+    .command("pay <commission-id>")
+    .description("Pay the selected executor for a matched commission")
+    .option("--keypair <path>", "Keypair file path")
+    .action(async (commissionIdStr, opts) => {
+      try {
+        const { client } = buildClient(opts.keypair);
+        const commissionId = parseInt(commissionIdStr);
+        const { txSignature, amount, executor } = await client.commission.pay(commissionId);
+        printSuccess(`Payment sent: ${formatUsdc(amount)} → ${executor.toBase58()}`);
+        printTx("Tx", txSignature);
       } catch (e: any) {
         printError(e.message);
         process.exit(1);
