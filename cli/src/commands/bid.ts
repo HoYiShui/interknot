@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { Bid } from "@inter-knot/sdk";
+import { Bid, withReconnect } from "@inter-knot/sdk";
 import { buildClient } from "../utils/sdk-client.js";
 import { formatBid, printSuccess, printError, printTx } from "../utils/display.js";
 
@@ -28,33 +28,35 @@ export function bidCommand(): Command {
             return;
           }
 
-          // Watch the commission account for bidCount > 0 via WebSocket
+          // Watch the commission account for bidCount > 0 via reconnect-hardened WebSocket
           const commissionPda = client.commissionPda(commissionId);
           await new Promise<void>((resolve, reject) => {
-            let subId: number;
             const timer = setTimeout(() => {
-              client.provider.connection.removeAccountChangeListener(subId);
+              watcher.stop();
               reject(new Error(`Timeout after ${opts.timeout}s: no bids found`));
             }, timeoutMs);
 
-            subId = client.provider.connection.onAccountChange(
-              commissionPda,
-              async (accountInfo) => {
-                try {
-                  const raw = client.program.coder.accounts.decode(
-                    "commission",
-                    accountInfo.data
-                  );
-                  if (raw.bidCount.toNumber() > 0) {
-                    clearTimeout(timer);
-                    client.provider.connection.removeAccountChangeListener(subId);
-                    const bids = await client.query.getBidsSortedByPrice(commissionId);
-                    bids.forEach((b: Bid, i: number) => formatBid(b, i));
-                    resolve();
-                  }
-                } catch { /* not a commission account or not ready */ }
-              },
-              "confirmed"
+            const watcher = withReconnect(
+              () => client.provider.connection.onAccountChange(
+                commissionPda,
+                async (accountInfo) => {
+                  try {
+                    const raw = client.program.coder.accounts.decode(
+                      "commission",
+                      accountInfo.data
+                    );
+                    if (raw.bidCount.toNumber() > 0) {
+                      clearTimeout(timer);
+                      watcher.stop();
+                      const bids = await client.query.getBidsSortedByPrice(commissionId);
+                      bids.forEach((b: Bid, i: number) => formatBid(b, i));
+                      resolve();
+                    }
+                  } catch { /* not a commission account or not ready */ }
+                },
+                "confirmed"
+              ),
+              (id) => client.provider.connection.removeAccountChangeListener(id)
             );
           });
         } else {

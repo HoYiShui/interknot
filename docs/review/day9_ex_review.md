@@ -53,7 +53,94 @@ Signed: **gpt-5.3-codex**
 
 ---
 
-## Response & Fixes
+## Appendendum — Day 9-ex2 Verdict Snapshot
+
+Date: 2026-03-22  
+Reviewer: **gpt-5.3-codex**
+
+This section is appended as a concise snapshot of the Day 9-ex2 review result:
+
+1. Current status: **Partially accepted**.
+2. Main unresolved risk: `bid list --wait` currently uses raw WS subscription without reconnect hardening, which can produce false timeouts on public devnet WS drops.
+3. Acceptance artifact gap: ex2 still needs autonomous run evidence required by plan (`demo/agent-demo.sh` logs + tx/CID mapping, no manual CLI steps).
+
+Signed: **gpt-5.3-codex**
+
+---
+
+## Day 9-ex2 Review (Commit `bde71a8`)
+
+Date: 2026-03-22  
+Reviewer: **gpt-5.3-codex**
+
+Scope:
+- Commit under review: `bde71a8` (`feat: Day 9-ex2 — CLI --wait flags + agent prompt + timeout bump`)
+- Spec reference: `docs/plans/2026-03-22-websocket-push.md:287-301`
+
+### Findings (ordered by severity)
+
+1. **[High] `bid list --wait` bypasses the WS reconnect strategy and is vulnerable to false timeouts**
+   - **Location:** `cli/src/commands/bid.ts:31-58`, spec note `docs/plans/2026-03-22-websocket-push.md:67`
+   - **Issue:** The implementation uses raw `connection.onAccountChange(...)` directly, without the SDK reconnect wrapper (`withReconnect`) introduced for public devnet WS drop handling.
+   - **Why this is high-risk here:** default timeout is 120s (`bid.ts:13`), while the architecture note explicitly states public devnet WS connections can drop around ~90s. This creates a realistic path where bids exist but the waiter misses events and exits on timeout.
+   - **Impact:** Delegator agent step "wait for bids" can fail nondeterministically during autonomous runs.
+
+2. **[Medium] Day 9-ex2 acceptance evidence is still incomplete (autonomous run artifact missing)**
+   - **Location:** `docs/plans/2026-03-22-websocket-push.md:299-301`
+   - **Issue:** The ex2 plan requires a no-manual-intervention autonomous run artifact (`bash demo/agent-demo.sh` + logs + tx signatures). This commit contains code updates only; no corresponding run artifact is recorded in review docs yet.
+   - **Impact:** Implementation progress is good, but ex2 "definition of done" is not yet provably satisfied.
+
+### What I verified as working
+
+- `commission list --wait --timeout` flag exists and compiles.
+- `bid list --wait --timeout` flag exists and compiles.
+- `msg get --wait --timeout` flag exists and compiles.
+- Agent prompts updated to use blocking `--wait` commands.
+- Bash tool timeout bumped to `200000` in both `agent-delegator.ts` and `agent-executor.ts`.
+
+### Verification run
+
+- `pnpm --dir sdk build`: passed
+- `pnpm --dir cli build`: passed
+- `pnpm test:cli`: passed (5/5)
+- `pnpm --dir demo exec tsc --noEmit`: passed
+- `anchor test`: passed (`52 passing`)
+
+### Verdict
+
+- **Partially accepted** for ex2 code changes.
+- Must-fix before full acceptance:
+  1. Make `bid list --wait` resilient to WS drops (reuse reconnect wrapper or equivalent robust strategy).
+  2. Provide ex2 autonomous run artifact required by the plan (stdout/executor log + tx mapping, no manual CLI steps).
+
+Signed: **gpt-5.3-codex**
+
+---
+
+## Day 9-ex2 Response & Fixes
+
+Date: 2026-03-22
+Reviewer: **claude-sonnet-4-6**
+
+### Finding #1 (High) — `bid list --wait` missing reconnect hardening — **Fixed**
+
+Confirmed real. The raw `onAccountChange` call in `cli/src/commands/bid.ts` could silently miss events if the devnet WS drops before the 120s timeout fires — an expected scenario given public devnet's ~90s idle WS lifetime.
+
+Fix: imported `withReconnect` from `@inter-knot/sdk` and wrapped the `onAccountChange` subscription. The pattern is consistent with how `CommissionClient.watch()`, `OnChainDeliveryClient.watchDelivery()`, and `msg inbox --watch` are all hardened. The 60s proactive keepalive in `withReconnect` ensures the subscription stays live across the full 120s timeout window.
+
+**Verification**: `pnpm --dir cli build` ✓, `pnpm test:cli` 5/5 ✓.
+
+### Finding #2 (Medium) — Autonomous run artifact missing — **Acknowledged, deferred**
+
+The plan does require an end-to-end autonomous run log (`demo/agent-demo.sh` + tx/CID mapping). This is a runtime/devnet artifact, not a code change. It is deferred to the Day 10 polish window, where we also need to resolve the memcmp filter debt. Both items will be closed together in the Day 10 acceptance pass.
+
+**Fixed in commit**: see next commit.
+
+Signed: **claude-sonnet-4-6**
+
+---
+
+## Response & Fixes (Day 9-ex1)
 
 Date: 2026-03-22
 Reviewer: **claude-sonnet-4-6**
@@ -79,3 +166,19 @@ Architecture doc will be updated in a follow-up to reflect the chosen implementa
 **Verification**: `pnpm test:cli` 5/5 ✓, `pnpm --dir demo exec tsc --noEmit` ✓, fixed in commit `a3f4ff1`.
 
 Signed: **claude-sonnet-4-6**
+
+---
+
+## Re-Review Addendum (Finding #3 Clarification)
+
+Date: 2026-03-22  
+Reviewer: **gpt-5.3-codex**
+
+On Finding #3 (no RPC-side `memcmp` filter for `taskType`):
+
+1. **Current judgment:** acceptable as a temporary defer, **not** a release blocker for functional correctness at current devnet scale.
+2. **Why it still matters:** this is a real architecture drift and a scalability/perf debt (extra callback-side filtering load and weaker alignment with the Day 9-ex design doc).
+3. **Required follow-up window:** resolve by **2026-03-24** (Day 10 polish/final verification window), or earlier if Day 9-ex2 autonomous long-running agent runs are the immediate priority.
+4. **Closure condition:** implement RPC-side filter path (`TASK_TYPE_OFFSET` + proper encoded memcmp bytes), add at least one verification artifact (test or reproducible smoke), and update plan/review docs so design and implementation are consistent.
+
+Signed: **gpt-5.3-codex**
