@@ -28,3 +28,6 @@ claude.md
 
 # Demo generated files
 demo/.demo-wallets.json
+
+# Agent secrets
+.agent.env

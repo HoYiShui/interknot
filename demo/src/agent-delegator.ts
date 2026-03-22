@@ -2,53 +2,63 @@
  * Agent Delegator — a pi-agent instance that autonomously creates commissions,
  * selects bids, sends tasks via Irys, and retrieves results.
  *
- * Usage: ANTHROPIC_API_KEY=... KEYPAIR=<path> TASK_PROMPT="<prompt>" tsx src/agent-delegator.ts
+ * Usage:
+ *   ENV_FILE=.agent.env \
+ *   SYSTEM_PROMPT_FILE=demo/prompts/delegator.md \
+ *   KEYPAIR=/tmp/ik-a.json \
+ *   TASK_PROMPT="Explain quantum computing in one sentence." \
+ *   pnpm --dir demo exec tsx src/agent-delegator.ts
+ *
+ * ENV_FILE       Path to a KEY=VALUE file containing ANTHROPIC_API_KEY (default: .agent.env)
+ * SYSTEM_PROMPT_FILE  Path to the system prompt template (default: demo/prompts/delegator.md)
+ *                     Placeholders: {{KEYPAIR}}, {{TASK_PROMPT}}
  */
 import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel } from "@mariozechner/pi-ai";
 import { Type } from "@sinclair/typebox";
 import { execSync } from "node:child_process";
-import { writeFileSync, mkdtempSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ── Load env file ─────────────────────────────────────────────────
+function loadEnvFile(filePath: string): void {
+  if (!existsSync(filePath)) return;
+  for (const line of readFileSync(filePath, "utf-8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx < 0) continue;
+    const key = trimmed.slice(0, idx).trim();
+    const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+    if (!process.env[key]) process.env[key] = val;
+  }
+}
+
+const ENV_FILE = process.env.ENV_FILE ?? resolve(process.cwd(), ".agent.env");
+loadEnvFile(ENV_FILE);
+
+// ── Config ────────────────────────────────────────────────────────
 const KEYPAIR = process.env.KEYPAIR ?? "~/.config/solana/id.json";
 const TASK_PROMPT = process.env.TASK_PROMPT ?? "Translate to Japanese: Hello, how are you today?";
 const MODEL = process.env.MODEL ?? "claude-sonnet-4-20250514";
 
-const SYSTEM_PROMPT = `You are an Inter-Knot delegator agent. Your job is to publish computation tasks on the Inter-Knot protocol, find the best executor via competitive bidding, send them the task, and retrieve the result.
+// ── Load system prompt ────────────────────────────────────────────
+const DEFAULT_PROMPT_FILE = resolve(__dirname, "../prompts/delegator.md");
+const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE ?? DEFAULT_PROMPT_FILE;
 
-You have a bash tool to execute inter-knot CLI commands. Your keypair is at: ${KEYPAIR}
+function loadSystemPrompt(): string {
+  const raw = readFileSync(SYSTEM_PROMPT_FILE, "utf-8");
+  return raw
+    .replaceAll("{{KEYPAIR}}", KEYPAIR)
+    .replaceAll("{{TASK_PROMPT}}", TASK_PROMPT);
+}
 
-Available commands:
-  inter-knot commission create --task-type <type> --spec '<json>' --max-price <usdc> --deadline <duration> --keypair ${KEYPAIR}
-  inter-knot bid list <commission-id> --wait --timeout 120 --keypair ${KEYPAIR}
-  inter-knot bid list <commission-id> --keypair ${KEYPAIR}
-  inter-knot match select <commission-id> <executor-pubkey> --keypair ${KEYPAIR}
-  inter-knot msg send <commission-id> --file <path> --keypair ${KEYPAIR}
-  inter-knot msg get <commission-id> --wait --timeout 120 --keypair ${KEYPAIR}
-  inter-knot commission complete <commission-id> --keypair ${KEYPAIR}
+const SYSTEM_PROMPT = loadSystemPrompt();
 
-Your workflow:
-1. Create a commission for task type "compute/llm-inference" with spec '{"model":"llama-3-8b","maxTokens":512}', max price 0.10 USDC and deadline 10m. Note the commission ID.
-2. Run "bid list <commission-id> --wait --timeout 120" — blocks until the first bid appears.
-3. Once the first bid arrives, wait 30 more seconds (use bash: sleep 30) to allow competing executors to also submit bids.
-4. Run "bid list <commission-id>" (no --wait) to see ALL submitted bids with their prices and executor pubkeys.
-5. Select the bid with the LOWEST price: "match select <commission-id> <executor-pubkey>"
-6. Write the task prompt to /tmp/task-<commission-id>.txt using bash, then send: "msg send <commission-id> --file /tmp/task-<commission-id>.txt"
-7. Run "msg get <commission-id> --wait --timeout 120" — blocks until the executor returns the result.
-8. Mark commission as completed: "commission complete <commission-id>"
-9. Print a clear summary: commission ID, all bids received (pubkey + price), selected executor, final result.
-
-Important rules:
-- Always include --keypair ${KEYPAIR} in every command
-- Use the bash tool for all operations
-- When writing the task prompt to a file, use /tmp/
-- Always wait the full 30 seconds after first bid before selecting — this ensures competing bids are captured
-- Always select the LOWEST-priced bid
-- The --wait flag blocks until the event arrives; do NOT manually poll or sleep except for the 30s competitive window
-- Print a clear summary at the end showing: commission ID, all bids, selected executor, price, and result`;
-
+// ── Bash tool ─────────────────────────────────────────────────────
 const bashTool = {
   name: "bash",
   label: "Bash",
@@ -78,10 +88,12 @@ const bashTool = {
   },
 };
 
+// ── Main ──────────────────────────────────────────────────────────
 async function main() {
   console.log("=== Inter-Knot Delegator Agent ===");
-  console.log(`Task: ${TASK_PROMPT}`);
+  console.log(`Task:    ${TASK_PROMPT}`);
   console.log(`Keypair: ${KEYPAIR}`);
+  console.log(`Prompt:  ${SYSTEM_PROMPT_FILE}`);
   console.log();
 
   const agent = new Agent({

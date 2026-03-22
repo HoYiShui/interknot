@@ -2,48 +2,66 @@
  * Agent Executor — a pi-agent instance that watches for commissions,
  * bids on them, receives tasks via Irys, executes them, and returns results.
  *
- * Usage: ANTHROPIC_API_KEY=... KEYPAIR=<path> tsx src/agent-executor.ts
+ * Usage:
+ *   ENV_FILE=.agent.env \
+ *   SYSTEM_PROMPT_FILE=demo/prompts/executor.md \
+ *   KEYPAIR=/tmp/ik-b.json \
+ *   BID_PRICE=0.003 \
+ *   pnpm --dir demo exec tsx src/agent-executor.ts
+ *
+ * ENV_FILE            Path to a KEY=VALUE file containing ANTHROPIC_API_KEY (default: .agent.env)
+ * SYSTEM_PROMPT_FILE  Path to the system prompt template (default: demo/prompts/executor.md)
+ *                     Placeholders: {{KEYPAIR}}, {{BID_PRICE}}, {{TASK_TYPE}}
+ * BID_PRICE           Bid price in USDC (default: 0.005)
  */
 import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel } from "@mariozechner/pi-ai";
 import { Type } from "@sinclair/typebox";
 import { execSync } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ── Load env file ─────────────────────────────────────────────────
+function loadEnvFile(filePath: string): void {
+  if (!existsSync(filePath)) return;
+  for (const line of readFileSync(filePath, "utf-8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx < 0) continue;
+    const key = trimmed.slice(0, idx).trim();
+    const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+    if (!process.env[key]) process.env[key] = val;
+  }
+}
+
+const ENV_FILE = process.env.ENV_FILE ?? resolve(process.cwd(), ".agent.env");
+loadEnvFile(ENV_FILE);
+
+// ── Config ────────────────────────────────────────────────────────
 const KEYPAIR = process.env.KEYPAIR ?? "~/.config/solana/id.json";
 const MODEL = process.env.MODEL ?? "claude-sonnet-4-20250514";
 const TASK_TYPE = process.env.TASK_TYPE ?? "compute/llm-inference";
 const BID_PRICE = process.env.BID_PRICE ?? "0.005";
 
-const SYSTEM_PROMPT = `You are an Inter-Knot executor agent. Your job is to watch for computation tasks on the Inter-Knot protocol, bid on them, execute the task when selected, and return the result.
+// ── Load system prompt ────────────────────────────────────────────
+const DEFAULT_PROMPT_FILE = resolve(__dirname, "../prompts/executor.md");
+const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE ?? DEFAULT_PROMPT_FILE;
 
-You have a bash tool to execute inter-knot CLI commands. Your keypair is at: ${KEYPAIR}
+function loadSystemPrompt(): string {
+  const raw = readFileSync(SYSTEM_PROMPT_FILE, "utf-8");
+  return raw
+    .replaceAll("{{KEYPAIR}}", KEYPAIR)
+    .replaceAll("{{BID_PRICE}}", BID_PRICE)
+    .replaceAll("{{TASK_TYPE}}", TASK_TYPE);
+}
 
-Available commands:
-  inter-knot commission list --task-type <type> --wait --timeout 180 --keypair ${KEYPAIR}
-  inter-knot bid submit <commission-id> --price <usdc> --delivery-method irys --keypair ${KEYPAIR}
-  inter-knot msg get <commission-id> --wait --timeout 120 --keypair ${KEYPAIR}
-  inter-knot msg send <commission-id> --file <path> --keypair ${KEYPAIR}
+const SYSTEM_PROMPT = loadSystemPrompt();
 
-Your workflow:
-1. Run "commission list --task-type ${TASK_TYPE} --wait --timeout 180" — it blocks until an open commission appears. Note the commission ID.
-2. Submit a bid: "bid submit <commission-id> --price ${BID_PRICE} --delivery-method irys"
-3. Wait 90 seconds for the delegator to select a bid (use bash: sleep 90).
-4. Try "msg get <commission-id> --wait --timeout 120":
-   - If it SUCCEEDS and returns decrypted content: you were selected! Proceed to step 5.
-   - If it FAILS with an error containing "not the selected executor" or "not the delegator": you were not selected. Print "Not selected for commission <id>. Exiting cleanly." and stop.
-   - If it FAILS with any other error: print the error and stop.
-5. Execute the task: for LLM inference tasks, generate a thoughtful response to the prompt content received.
-6. Write the response to /tmp/result-<commission-id>.txt using bash.
-7. Send the result: "msg send <commission-id> --file /tmp/result-<commission-id>.txt"
-8. Print a summary: commission ID, bid price, whether selected, result sent.
-
-Important rules:
-- Always include --keypair ${KEYPAIR} in every command
-- Use the bash tool for all operations
-- When not selected, exit cleanly with a clear message — do NOT retry or bid again
-- When the task is an LLM prompt, YOU are the LLM — generate the response yourself
-- Be concise and professional in your responses`;
-
+// ── Bash tool ─────────────────────────────────────────────────────
 const bashTool = {
   name: "bash",
   label: "Bash",
@@ -73,10 +91,13 @@ const bashTool = {
   },
 };
 
+// ── Main ──────────────────────────────────────────────────────────
 async function main() {
   console.log("=== Inter-Knot Executor Agent ===");
+  console.log(`  Task type: ${TASK_TYPE}`);
   console.log(`  Bid price: $${BID_PRICE} USDC`);
-  console.log(`Keypair: ${KEYPAIR}`);
+  console.log(`  Keypair:   ${KEYPAIR}`);
+  console.log(`  Prompt:    ${SYSTEM_PROMPT_FILE}`);
   console.log();
 
   const agent = new Agent({
