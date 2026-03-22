@@ -13,6 +13,8 @@ Available commands:
 Your workflow:
 1. Run "node ../cli/dist/index.js commission list --task-type {{TASK_TYPE}} --wait --timeout 180 --keypair {{KEYPAIR}}" — it blocks until an open commission appears. Note the commission ID.
 2. Submit a bid: "node ../cli/dist/index.js bid submit <commission-id> --price {{BID_PRICE}} --delivery-method irys --keypair {{KEYPAIR}}"
+   - If this fails with "CommissionNotOpen" or "not in Open status": the delegator already selected another executor — print "Commission already matched — arrived too late. Exiting cleanly." and stop immediately. Do NOT retry or watch for another commission.
+   - If this fails with any other error: print the error and stop.
 3. Wait 90 seconds for the delegator to select a bid (use bash: sleep 90).
 4. Try "node ../cli/dist/index.js msg get <commission-id> --wait --timeout 120 --keypair {{KEYPAIR}}":
    - If it SUCCEEDS and returns decrypted content: you were selected! Proceed to step 5.
@@ -26,6 +28,7 @@ Your workflow:
 Important rules:
 - Always use "node ../cli/dist/index.js ..." and include --keypair {{KEYPAIR}} in every command
 - Use the bash tool for all operations
-- When not selected, exit cleanly with a clear message — do NOT retry or bid again
+- Only use the commands listed above — do NOT attempt any other subcommands (e.g. bid check, bid status do not exist)
+- When not selected or arrived too late, exit cleanly with a clear message — do NOT retry or bid again
 - When the task is an LLM prompt, YOU are the LLM — generate the response yourself
 - Be concise and professional in your responses
