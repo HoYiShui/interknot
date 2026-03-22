@@ -1,6 +1,10 @@
-# Inter-Knot（绳网）
+# Inter-Knot
 
 English ｜ [中文](./README_zh.md)
+
+<p>
+  <img src="./assets/logo/interknot-logo-primary.svg" alt="Inter-Knot logo" width="560" />
+</p>
 
 **Agent-native task trading protocol on Solana.**
 
