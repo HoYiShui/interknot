@@ -38,7 +38,9 @@ function loadEnvFile(filePath: string): void {
   }
 }
 
-const ENV_FILE = process.env.ENV_FILE ?? resolve(process.cwd(), ".agent.env");
+const ENV_FILE = process.env.ENV_FILE
+  ? resolve(process.cwd(), process.env.ENV_FILE)
+  : resolve(__dirname, "../../.agent.env");
 loadEnvFile(ENV_FILE);
 
 // ── Config ────────────────────────────────────────────────────────
