@@ -45,6 +45,14 @@ const KEYPAIR = process.env.KEYPAIR ?? "~/.config/solana/id.json";
 const TASK_PROMPT = process.env.TASK_PROMPT ?? "Translate to Japanese: Hello, how are you today?";
 const MODEL = process.env.MODEL ?? "claude-sonnet-4-20250514";
 
+// ── Validate required config ──────────────────────────────────────
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error("Error: ANTHROPIC_API_KEY is not set.");
+  console.error(`  Looked for ENV_FILE: ${ENV_FILE}`);
+  console.error("  Create .agent.env from .agent.env.example and fill in your API key.");
+  process.exit(1);
+}
+
 // ── Load system prompt ────────────────────────────────────────────
 const DEFAULT_PROMPT_FILE = resolve(__dirname, "../prompts/delegator.md");
 const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE ?? DEFAULT_PROMPT_FILE;
@@ -97,6 +105,9 @@ async function main() {
   console.log();
 
   const model = getModel("anthropic", MODEL as any);
+  if (!model) {
+    throw new Error(`Unknown model "${MODEL}" for provider "anthropic". Check MODEL in .agent.env.`);
+  }
   if (process.env.ANTHROPIC_BASE_URL) {
     (model as any).baseUrl = process.env.ANTHROPIC_BASE_URL;
   }
@@ -117,11 +128,22 @@ async function main() {
     ) {
       process.stdout.write(event.assistantMessageEvent.delta);
     }
+    if (event.type === "agent_end") {
+      const errMsg = event.messages?.find((m: any) => m.stopReason === "error")?.errorMessage;
+      if (errMsg) {
+        console.error(`\nAgent error: ${errMsg}`);
+      }
+    }
   });
 
   await agent.prompt(
     `Please execute the full delegator workflow for this task: "${TASK_PROMPT}"`
   );
+
+  const agentError = (agent as any)._state?.error;
+  if (agentError) {
+    throw new Error(`Agent failed: ${agentError}`);
+  }
 
   console.log("\n\n=== Delegator Agent Complete ===");
 }
