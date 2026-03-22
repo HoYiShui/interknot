@@ -8,6 +8,7 @@ import {
   deriveSharedSecret,
   encrypt,
   decrypt,
+  withReconnect,
 } from "@inter-knot/sdk";
 import { buildClient } from "../utils/sdk-client.js";
 import { loadKeypair, loadConfig } from "../utils/config.js";
@@ -217,44 +218,53 @@ export function msgCommand(): Command {
         }
 
         if (opts.watch) {
-          console.log("\nWatching for updates (Ctrl+C to stop)...\n");
+          console.log("\nWatching for updates via WebSocket (Ctrl+C to stop)...\n");
           const seen = new Set(
             relevant.map((d: any) =>
               `${d.account.commissionId}-${Object.keys(d.account.status)[0]}`
             )
           );
 
-          const poll = async () => {
-            while (true) {
-              await new Promise((r) => setTimeout(r, 3000));
-              const fresh = await client.accounts.taskDelivery.all();
-              for (const d of fresh) {
-                const acct = d.account;
-                if (
-                  acct.executor.toBase58() !== myKey &&
-                  acct.delegator.toBase58() !== myKey
-                )
-                  continue;
-                const statusKey = Object.keys(acct.status)[0];
-                const key = `${acct.commissionId}-${statusKey}`;
-                if (!seen.has(key)) {
-                  seen.add(key);
-                  const role =
-                    acct.executor.toBase58() === myKey
-                      ? "executor"
-                      : "delegator";
-                  console.log(
-                    `[NEW] Commission #${acct.commissionId} | role: ${role} | status: ${statusKey}`
-                  );
-                  if (acct.inputCid)
-                    console.log(`  input:  ${acct.inputCid}`);
-                  if (acct.outputCid)
-                    console.log(`  output: ${acct.outputCid}`);
-                }
-              }
-            }
+          const printDelivery = (acct: any, prefix = "[NEW]") => {
+            const role = acct.executor.toBase58() === myKey ? "executor" : "delegator";
+            const statusKey = Object.keys(acct.status)[0];
+            console.log(`${prefix} Commission #${acct.commissionId} | role: ${role} | status: ${statusKey}`);
+            if (acct.inputCid) console.log(`  input:  ${acct.inputCid}`);
+            if (acct.outputCid) console.log(`  output: ${acct.outputCid}`);
           };
-          await poll();
+
+          const subscribe = () =>
+            client.provider.connection.onProgramAccountChange(
+              client.programId,
+              (keyedAccountInfo) => {
+                try {
+                  const acct = client.program.coder.accounts.decode(
+                    "taskDelivery",
+                    keyedAccountInfo.accountInfo.data
+                  );
+                  if (
+                    acct.executor.toBase58() !== myKey &&
+                    acct.delegator.toBase58() !== myKey
+                  ) return;
+                  const statusKey = Object.keys(acct.status)[0];
+                  const key = `${acct.commissionId.toString()}-${statusKey}`;
+                  if (!seen.has(key)) {
+                    seen.add(key);
+                    printDelivery(acct);
+                  }
+                } catch { /* not a TaskDelivery account */ }
+              },
+              "confirmed"
+            );
+
+          const { stop } = withReconnect(
+            subscribe,
+            (id) => client.provider.connection.removeProgramAccountChangeListener(id)
+          );
+
+          // Keep process alive; clean up on Ctrl+C
+          process.on("SIGINT", () => { stop(); process.exit(0); });
+          await new Promise(() => {}); // block forever
         }
       } catch (e: any) {
         printError(e.message);

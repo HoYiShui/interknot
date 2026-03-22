@@ -9,6 +9,7 @@ import {
   CreateCommissionParams,
   parseCommissionStatus,
 } from "../types/commission.js";
+import { withReconnect } from "../utils/ws-reconnect.js";
 
 export class CommissionClient {
   constructor(private readonly ik: InterKnot) {}
@@ -108,39 +109,60 @@ export class CommissionClient {
 
   watch(params: {
     taskType?: string;
-    pollIntervalMs?: number;
     onNew: (commission: Commission) => void | Promise<void>;
   }): { stop: () => void } {
-    const interval = params.pollIntervalMs ?? 2000;
     const seen = new Set<number>();
-    let running = true;
 
-    const poll = async () => {
-      while (running) {
-        try {
-          const commissions = await this.list({
-            status: "open",
-            taskType: params.taskType,
-          });
-          for (const c of commissions) {
-            if (!seen.has(c.commissionId)) {
-              seen.add(c.commissionId);
-              await params.onNew(c);
-            }
-          }
-        } catch {
-          // Silently retry on transient errors
+    // Emit a commission if it's open and not yet seen.
+    const maybeEmit = (raw: any, address: PublicKey) => {
+      try {
+        if (raw.status?.open === undefined) return;
+        if (params.taskType && raw.taskType !== params.taskType) return;
+        const c = this.parseCommission(raw, address);
+        if (!seen.has(c.commissionId)) {
+          seen.add(c.commissionId);
+          params.onNew(c);
         }
-        await new Promise((r) => setTimeout(r, interval));
+      } catch {
+        // Not a decodable Commission; skip.
       }
     };
 
-    poll();
-    return {
-      stop: () => {
-        running = false;
-      },
-    };
+    // Initial scan: emit any open commissions that already exist so callers
+    // don't miss commissions created before watch() was called.
+    this.list({ status: "open", taskType: params.taskType })
+      .then((existing) => existing.forEach((c) => {
+        if (!seen.has(c.commissionId)) {
+          seen.add(c.commissionId);
+          params.onNew(c);
+        }
+      }))
+      .catch(() => {});
+
+    // WebSocket subscription: fires on every account change for the program.
+    // Filtering is done in the callback (JS-side) — program account count is
+    // small enough that this is not a bottleneck.
+    const subscribe = () =>
+      this.ik.provider.connection.onProgramAccountChange(
+        this.ik.programId,
+        (keyedAccountInfo: any) => {
+          try {
+            const raw = this.ik.program.coder.accounts.decode(
+              "commission",
+              keyedAccountInfo.accountInfo.data
+            );
+            maybeEmit(raw, keyedAccountInfo.accountId);
+          } catch {
+            // Different account type (bid, config, delivery); ignore.
+          }
+        },
+        "confirmed"
+      );
+
+    return withReconnect(
+      subscribe,
+      (id) => this.ik.provider.connection.removeProgramAccountChangeListener(id)
+    );
   }
 
   private parseCommission(raw: any, address: PublicKey): Commission {

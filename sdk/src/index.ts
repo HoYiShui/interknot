@@ -32,6 +32,9 @@ export { deriveSharedSecret, encrypt, decrypt } from "./crypto/ecdh.js";
 export { estimateComputeCost, computeLlmPricing, ComputeLlmSpec } from "./pricing/compute.js";
 export { PricingContext, PriceEstimate, PricingFunction } from "./pricing/types.js";
 
+// Utils
+export { withReconnect } from "./utils/ws-reconnect.js";
+
 // Types
 export {
   Commission,

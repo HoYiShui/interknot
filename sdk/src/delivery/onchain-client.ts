@@ -1,6 +1,7 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import BN from "bn.js";
 import { InterKnot } from "../client/program.js";
+import { withReconnect } from "../utils/ws-reconnect.js";
 
 export interface TaskDelivery {
   commissionId: number;
@@ -108,35 +109,48 @@ export class OnChainDeliveryClient {
     }
   }
 
-  /** Poll for delivery status changes */
-  async watchDelivery(
+  /** Subscribe to delivery status changes via WebSocket (replaces polling). */
+  watchDelivery(
     commissionId: number,
     opts: {
       onUpdate: (delivery: TaskDelivery) => void;
-      intervalMs?: number;
     }
-  ): Promise<{ stop: () => void }> {
-    const intervalMs = opts.intervalMs ?? 3000;
+  ): { stop: () => void } {
+    const deliveryPda = this.ik.deliveryPda(commissionId);
     let lastStatus: DeliveryStatus | null = null;
-    let stopped = false;
 
-    const poll = async () => {
-      while (!stopped) {
-        const delivery = await this.getDelivery(commissionId);
-        if (delivery && delivery.status !== lastStatus) {
-          lastStatus = delivery.status;
-          opts.onUpdate(delivery);
+    // Emit current state immediately if the account already exists.
+    this.getDelivery(commissionId)
+      .then((current) => {
+        if (current && current.status !== lastStatus) {
+          lastStatus = current.status;
+          opts.onUpdate(current);
         }
-        await new Promise((r) => setTimeout(r, intervalMs));
-      }
-    };
+      })
+      .catch(() => {});
 
-    poll().catch(() => {}); // fire and forget
+    const subscribe = () =>
+      this.ik.provider.connection.onAccountChange(
+        deliveryPda,
+        (accountInfo: any) => {
+          try {
+            const raw = this.ik.program.coder.accounts.decode(
+              "taskDelivery",
+              accountInfo.data
+            );
+            const delivery = toTaskDelivery(raw);
+            if (delivery.status !== lastStatus) {
+              lastStatus = delivery.status;
+              opts.onUpdate(delivery);
+            }
+          } catch { /* ignore */ }
+        },
+        "confirmed"
+      );
 
-    return {
-      stop: () => {
-        stopped = true;
-      },
-    };
+    return withReconnect(
+      subscribe,
+      (id) => this.ik.provider.connection.removeAccountChangeListener(id)
+    );
   }
 }
