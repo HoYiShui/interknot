@@ -8,18 +8,63 @@ export function bidCommand(): Command {
 
   cmd
     .command("list <commission-id>")
-    .description("List bids for a commission")
+    .description("List bids for a commission (use --wait to block until one appears)")
+    .option("--wait", "Block until at least one bid appears")
+    .option("--timeout <seconds>", "Timeout in seconds for --wait (default: 120)", "120")
     .option("--keypair <path>", "Keypair file path")
     .action(async (commissionIdStr, opts) => {
       try {
         const { client } = buildClient(opts.keypair);
         const commissionId = parseInt(commissionIdStr);
-        const bids = await client.query.getBidsSortedByPrice(commissionId);
-        if (bids.length === 0) {
-          console.log("No bids found for this commission.");
-          return;
+
+        if (opts.wait) {
+          const timeoutMs = parseInt(opts.timeout) * 1000;
+          console.log(`Waiting for bids on commission #${commissionId} (timeout: ${opts.timeout}s)...`);
+
+          // Initial check — emit immediately if bids already exist
+          const existing = await client.query.getBidsSortedByPrice(commissionId);
+          if (existing.length > 0) {
+            existing.forEach((b: Bid, i: number) => formatBid(b, i));
+            return;
+          }
+
+          // Watch the commission account for bidCount > 0 via WebSocket
+          const commissionPda = client.commissionPda(commissionId);
+          await new Promise<void>((resolve, reject) => {
+            let subId: number;
+            const timer = setTimeout(() => {
+              client.provider.connection.removeAccountChangeListener(subId);
+              reject(new Error(`Timeout after ${opts.timeout}s: no bids found`));
+            }, timeoutMs);
+
+            subId = client.provider.connection.onAccountChange(
+              commissionPda,
+              async (accountInfo) => {
+                try {
+                  const raw = client.program.coder.accounts.decode(
+                    "commission",
+                    accountInfo.data
+                  );
+                  if (raw.bidCount.toNumber() > 0) {
+                    clearTimeout(timer);
+                    client.provider.connection.removeAccountChangeListener(subId);
+                    const bids = await client.query.getBidsSortedByPrice(commissionId);
+                    bids.forEach((b: Bid, i: number) => formatBid(b, i));
+                    resolve();
+                  }
+                } catch { /* not a commission account or not ready */ }
+              },
+              "confirmed"
+            );
+          });
+        } else {
+          const bids = await client.query.getBidsSortedByPrice(commissionId);
+          if (bids.length === 0) {
+            console.log("No bids found for this commission.");
+            return;
+          }
+          bids.forEach((b: Bid, i: number) => formatBid(b, i));
         }
-        bids.forEach((b: Bid, i: number) => formatBid(b, i));
       } catch (e: any) {
         printError(e.message);
         process.exit(1);

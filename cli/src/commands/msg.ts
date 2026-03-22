@@ -113,64 +113,97 @@ export function msgCommand(): Command {
     .description("Fetch and decrypt a message from a commission delivery")
     .argument("<commission-id>", "Commission ID")
     .option("--output <path>", "Write decrypted data to file (default: stdout)")
+    .option("--wait", "Block until the expected CID is available")
+    .option("--timeout <seconds>", "Timeout in seconds for --wait (default: 120)", "120")
     .option("--keypair <path>", "Keypair file path")
     .action(async (commissionIdStr, opts) => {
       try {
         const { client, wallet, cfg } = buildClient(opts.keypair);
         const commissionId = parseInt(commissionIdStr);
+        const myKey = wallet.publicKey.toBase58();
 
         const deliveryClient = new OnChainDeliveryClient(client);
-        const delivery = await deliveryClient.getDelivery(commissionId);
 
-        if (!delivery) {
-          throw new Error("No delivery found for this commission.");
-        }
-
-        // Determine role and which CID to fetch
-        const myKey = wallet.publicKey.toBase58();
-        const isDelegator = delivery.delegator.toBase58() === myKey;
-        const isExecutor = delivery.executor.toBase58() === myKey;
+        // Determine role from commission account (always exists)
+        const commissionPda = client.commissionPda(commissionId);
+        const rawCommission = await client.accounts.commission.fetch(commissionPda);
+        const isDelegator = rawCommission.delegator.toBase58() === myKey;
+        const isExecutor = rawCommission.selectedExecutor?.toBase58() === myKey;
 
         if (!isDelegator && !isExecutor) {
           throw new Error(
-            "You are neither the delegator nor the executor for this delivery."
+            "You are neither the delegator nor the selected executor for this commission."
           );
         }
 
-        // Delegator reads output, executor reads input
-        const cid = isDelegator ? delivery.outputCid : delivery.inputCid;
-        const counterpartPubkey = isDelegator
-          ? delivery.executor
-          : delivery.delegator;
+        const fetchAndPrint = async (delivery: any) => {
+          const cid = isDelegator ? delivery.outputCid : delivery.inputCid;
+          const counterpartPubkey = isDelegator ? delivery.executor : delivery.delegator;
 
-        if (!cid) {
-          console.log(
-            isDelegator
-              ? "No output available yet. Status: " + delivery.status
-              : "No input available yet. Status: " + delivery.status
-          );
-          return;
-        }
+          console.log(`Fetching from Irys: ${cid}`);
+          const irys = new IrysDeliveryClient({
+            wallet,
+            network: cfg.network,
+            rpcUrl: cfg.rpc,
+          });
+          const encrypted = await irys.downloadRaw(cid);
+          const sharedSecret = deriveSharedSecret(wallet, counterpartPubkey);
+          const decrypted = decrypt(new Uint8Array(encrypted), sharedSecret);
 
-        // Fetch from Irys
-        console.log(`Fetching from Irys: ${cid}`);
-        const irys = new IrysDeliveryClient({
-          wallet,
-          network: cfg.network,
-          rpcUrl: cfg.rpc,
-        });
-        const encrypted = await irys.downloadRaw(cid);
+          if (opts.output) {
+            writeFileSync(opts.output, Buffer.from(decrypted));
+            printSuccess(`Decrypted data written to ${opts.output}`);
+          } else {
+            process.stdout.write(Buffer.from(decrypted));
+            console.log();
+          }
+        };
 
-        // Decrypt
-        const sharedSecret = deriveSharedSecret(wallet, counterpartPubkey);
-        const decrypted = decrypt(new Uint8Array(encrypted), sharedSecret);
+        if (opts.wait) {
+          const timeoutMs = parseInt(opts.timeout) * 1000;
+          const cidLabel = isDelegator ? "output" : "input";
+          console.log(`Waiting for ${cidLabel} CID on commission #${commissionId} (timeout: ${opts.timeout}s)...`);
 
-        if (opts.output) {
-          writeFileSync(opts.output, Buffer.from(decrypted));
-          printSuccess(`Decrypted data written to ${opts.output}`);
+          await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(() => {
+              watcher.stop();
+              reject(new Error(`Timeout after ${opts.timeout}s: ${cidLabel} not available`));
+            }, timeoutMs);
+
+            const watcher = deliveryClient.watchDelivery(commissionId, {
+              onUpdate: async (delivery) => {
+                const cid = isDelegator ? delivery.outputCid : delivery.inputCid;
+                if (!cid) return;
+                clearTimeout(timer);
+                watcher.stop();
+                try {
+                  await fetchAndPrint(delivery);
+                  resolve();
+                } catch (e) {
+                  reject(e);
+                }
+              },
+            });
+          });
         } else {
-          process.stdout.write(Buffer.from(decrypted));
-          console.log(); // trailing newline
+          const delivery = await deliveryClient.getDelivery(commissionId);
+
+          if (!delivery) {
+            throw new Error("No delivery found for this commission.");
+          }
+
+          const cid = isDelegator ? delivery.outputCid : delivery.inputCid;
+
+          if (!cid) {
+            console.log(
+              isDelegator
+                ? "No output available yet. Status: " + delivery.status
+                : "No input available yet. Status: " + delivery.status
+            );
+            return;
+          }
+
+          await fetchAndPrint(delivery);
         }
       } catch (e: any) {
         printError(e.message);

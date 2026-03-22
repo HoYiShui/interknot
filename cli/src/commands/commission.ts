@@ -50,20 +50,45 @@ export function commissionCommand(): Command {
 
   cmd
     .command("list")
-    .description("List open commissions")
+    .description("List open commissions (use --wait to block until one appears)")
     .option("--task-type <type>", "Filter by task type")
+    .option("--wait", "Block until at least one matching commission appears")
+    .option("--timeout <seconds>", "Timeout in seconds for --wait (default: 180)", "180")
     .option("--keypair <path>", "Keypair file path")
     .action(async (opts) => {
       try {
         const { client } = buildClient(opts.keypair);
-        const commissions = await client.query.getOpenCommissions(
-          opts.taskType ? { taskType: opts.taskType } : undefined,
-        );
-        if (commissions.length === 0) {
-          console.log("No open commissions found.");
-          return;
+
+        if (opts.wait) {
+          const timeoutMs = parseInt(opts.timeout) * 1000;
+          console.log(`Waiting for open commission${opts.taskType ? ` of type "${opts.taskType}"` : ""} (timeout: ${opts.timeout}s)...`);
+
+          await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(() => {
+              watcher.stop();
+              reject(new Error(`Timeout after ${opts.timeout}s: no matching commission found`));
+            }, timeoutMs);
+
+            const watcher = client.commission.watch({
+              taskType: opts.taskType,
+              onNew: (c: Commission) => {
+                clearTimeout(timer);
+                watcher.stop();
+                formatCommission(c, 0);
+                resolve();
+              },
+            });
+          });
+        } else {
+          const commissions = await client.query.getOpenCommissions(
+            opts.taskType ? { taskType: opts.taskType } : undefined,
+          );
+          if (commissions.length === 0) {
+            console.log("No open commissions found.");
+            return;
+          }
+          commissions.forEach((c: Commission, i: number) => formatCommission(c, i));
         }
-        commissions.forEach((c: Commission, i: number) => formatCommission(c, i));
       } catch (e: any) {
         printError(e.message);
         process.exit(1);

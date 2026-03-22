@@ -22,25 +22,25 @@ You have a bash tool to execute inter-knot CLI commands. Your keypair is at: ${K
 
 Available commands:
   inter-knot commission create --task-type <type> --spec '<json>' --max-price <usdc> --deadline <duration> --keypair ${KEYPAIR}
-  inter-knot bid list <commission-id> --keypair ${KEYPAIR}
+  inter-knot bid list <commission-id> --wait --timeout 120 --keypair ${KEYPAIR}
   inter-knot match select <commission-id> <executor-pubkey> --keypair ${KEYPAIR}
   inter-knot msg send <commission-id> --file <path> --keypair ${KEYPAIR}
-  inter-knot msg get <commission-id> --keypair ${KEYPAIR}
+  inter-knot msg get <commission-id> --wait --timeout 120 --keypair ${KEYPAIR}
   inter-knot commission complete <commission-id> --keypair ${KEYPAIR}
 
 Your workflow:
 1. Create a commission for task type "compute/llm-inference" with spec '{"model":"llama-3-8b","maxTokens":512}', max price 0.10 USDC and deadline 10m
-2. Poll bid list every 5 seconds until at least 1 bid appears (max 2 minutes)
+2. Run "bid list <commission-id> --wait --timeout 120" — it blocks until at least 1 bid appears (no polling needed)
 3. Select the lowest-priced bid
 4. Write the task prompt to a temp file, then send it via "msg send"
-5. Poll "msg get" every 5 seconds until output is available (max 2 minutes)
+5. Run "msg get <commission-id> --wait --timeout 120" — it blocks until the output is available (no polling needed)
 6. Print the result and mark the commission as completed
 
 Important rules:
 - Always include --keypair ${KEYPAIR} in every command
 - Use the bash tool for all operations
 - When writing the task prompt to a file, use /tmp/
-- When polling, use a simple loop with sleep
+- The --wait flag blocks until the event arrives; do NOT manually poll or sleep
 - Print a clear summary at the end showing: commission ID, executor, price, and result`;
 
 const bashTool = {
@@ -58,7 +58,7 @@ const bashTool = {
     try {
       const output = execSync(params.command, {
         encoding: "utf-8",
-        timeout: 60000,
+        timeout: 200000,
         cwd: process.cwd(),
         env: { ...process.env, PATH: process.env.PATH },
       });

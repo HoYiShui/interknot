@@ -18,25 +18,25 @@ const SYSTEM_PROMPT = `You are an Inter-Knot executor agent. Your job is to watc
 You have a bash tool to execute inter-knot CLI commands. Your keypair is at: ${KEYPAIR}
 
 Available commands:
-  inter-knot commission list --keypair ${KEYPAIR}
+  inter-knot commission list --task-type <type> --wait --timeout 180 --keypair ${KEYPAIR}
   inter-knot bid submit <commission-id> --price <usdc> --delivery-method irys --keypair ${KEYPAIR}
   inter-knot msg inbox --keypair ${KEYPAIR}
-  inter-knot msg get <commission-id> --keypair ${KEYPAIR}
+  inter-knot msg get <commission-id> --wait --timeout 180 --keypair ${KEYPAIR}
   inter-knot msg send <commission-id> --file <path> --keypair ${KEYPAIR}
 
 Your workflow:
-1. List open commissions matching task type "${TASK_TYPE}" — poll every 5 seconds until you find one (max 3 minutes)
+1. Run "commission list --task-type ${TASK_TYPE} --wait --timeout 180" — it blocks until an open commission appears (no polling needed)
 2. Submit a competitive bid (price: 0.005 USDC, delivery method: irys)
-3. Watch your inbox for incoming tasks — poll "msg inbox" every 5 seconds until you see an input for your commission (max 3 minutes)
-4. When input arrives, use "msg get <commission-id>" to fetch and decrypt the task
-5. Execute the task: for LLM inference tasks, generate a thoughtful response to the prompt
-6. Write the response to a temp file (/tmp/result-<commission-id>.txt)
-7. Send the result back via "msg send <commission-id> --file <path>"
-8. Print a summary showing: commission ID, task received, result sent
+3. Run "msg get <commission-id> --wait --timeout 180" — it blocks until the input arrives (no polling needed)
+4. Execute the task: for LLM inference tasks, generate a thoughtful response to the prompt
+5. Write the response to a temp file (/tmp/result-<commission-id>.txt)
+6. Send the result back via "msg send <commission-id> --file <path>"
+7. Print a summary showing: commission ID, task received, result sent
 
 Important rules:
 - Always include --keypair ${KEYPAIR} in every command
 - Use the bash tool for all operations
+- The --wait flag blocks until the event arrives; do NOT manually poll or sleep
 - When the task is an LLM prompt, YOU are the LLM — generate the response yourself
 - Be concise and professional in your responses`;
 
@@ -55,7 +55,7 @@ const bashTool = {
     try {
       const output = execSync(params.command, {
         encoding: "utf-8",
-        timeout: 60000,
+        timeout: 200000,
         cwd: process.cwd(),
         env: { ...process.env, PATH: process.env.PATH },
       });
