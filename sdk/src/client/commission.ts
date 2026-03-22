@@ -121,7 +121,7 @@ export class CommissionClient {
         const c = this.parseCommission(raw, address);
         if (!seen.has(c.commissionId)) {
           seen.add(c.commissionId);
-          params.onNew(c);
+          Promise.resolve(params.onNew(c)).catch(() => {});
         }
       } catch {
         // Not a decodable Commission; skip.
@@ -134,7 +134,7 @@ export class CommissionClient {
       .then((existing) => existing.forEach((c) => {
         if (!seen.has(c.commissionId)) {
           seen.add(c.commissionId);
-          params.onNew(c);
+          Promise.resolve(params.onNew(c)).catch(() => {});
         }
       }))
       .catch(() => {});

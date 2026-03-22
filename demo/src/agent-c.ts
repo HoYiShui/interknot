@@ -43,7 +43,6 @@ async function main() {
 
   const { stop } = client.commission.watch({
     taskType: TASK_TYPE,
-    pollIntervalMs: 3000,
     onNew: async (commission: any) => {
       if (seen.has(commission.commissionId)) return;
       seen.add(commission.commissionId);
