@@ -1,17 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ──────────────────────────────────────────────────────
-# Inter-Knot Agent Demo
-# Two autonomous AI agents trading tasks on Solana
-# ──────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
+# Inter-Knot 3-Agent Competitive Demo
+#
+# Three autonomous AI agents on devnet:
+#   Agent A (Delegator)  — creates commission, selects lowest bid,
+#                          sends task via Irys, retrieves result
+#   Agent B (Executor)   — bids 0.003 USDC, executes if selected
+#   Agent C (Executor)   — bids 0.007 USDC, exits cleanly if not selected
+#
+# Expected outcome:
+#   B wins (lower price), C exits gracefully after selection check.
+#
+# Artifacts written to /tmp/ik-demo-*/
+#
+# Prerequisites:
+#   pnpm --dir demo demo:setup   (fund wallets, deploy program)
+#   export ANTHROPIC_API_KEY=sk-ant-...
+#
+# Usage:
+#   TASK_PROMPT="Explain quantum computing in one sentence." \
+#     ./demo/agent-demo.sh
+# ──────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEMO_DIR="$SCRIPT_DIR"
 WALLETS_FILE="$DEMO_DIR/.demo-wallets.json"
 
+# ── Pre-flight checks ─────────────────────────────────────────────
 if [ ! -f "$WALLETS_FILE" ]; then
-  echo "Error: $WALLETS_FILE not found. Run 'pnpm --dir demo setup' first."
+  echo "Error: $WALLETS_FILE not found."
+  echo "  Run: pnpm --dir demo demo:setup"
   exit 1
 fi
 
@@ -21,64 +41,106 @@ if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   exit 1
 fi
 
-# Extract keypair paths from wallet file
-AGENT_A_KP=$(node -e "const w=JSON.parse(require('fs').readFileSync('$WALLETS_FILE','utf8')); process.stdout.write('/tmp/agent-a-kp.json')")
-AGENT_B_KP=$(node -e "const w=JSON.parse(require('fs').readFileSync('$WALLETS_FILE','utf8')); process.stdout.write('/tmp/agent-b-kp.json')")
+TASK_PROMPT="${TASK_PROMPT:-Explain what a blockchain is in two sentences.}"
 
-# Write keypair files (demo wallets are stored as number[] arrays directly)
-node -e "
-const w = JSON.parse(require('fs').readFileSync('$WALLETS_FILE','utf8'));
-require('fs').writeFileSync('/tmp/agent-a-kp.json', JSON.stringify(w.agentA));
-require('fs').writeFileSync('/tmp/agent-b-kp.json', JSON.stringify(w.agentB));
-"
+# ── Log directory ─────────────────────────────────────────────────
+LOG_DIR="/tmp/ik-demo-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$LOG_DIR"
 
-TASK_PROMPT="${TASK_PROMPT:-Translate to Japanese: Hello, how are you today?}"
+AGENT_A_LOG="$LOG_DIR/agent-a-delegator.log"
+AGENT_B_LOG="$LOG_DIR/agent-b-executor.log"
+AGENT_C_LOG="$LOG_DIR/agent-c-executor.log"
 
-echo "══════════════════════════════════════════════════"
-echo "  Inter-Knot Agent Demo"
-echo "  Two AI agents autonomously trading tasks"
-echo "══════════════════════════════════════════════════"
+echo "══════════════════════════════════════════════════════════"
+echo "  Inter-Knot 3-Agent Competitive Demo"
+echo "══════════════════════════════════════════════════════════"
 echo ""
-echo "Agent A (Delegator): will create a commission and send a task"
-echo "Agent B (Executor):  will bid, receive, execute, and return result"
-echo "Task: $TASK_PROMPT"
+echo "  Task:    $TASK_PROMPT"
+echo "  Logs:    $LOG_DIR"
+echo ""
+echo "  Agent A  (Delegator)  — selects lowest bid"
+echo "  Agent B  (Executor)   — bids \$0.003 USDC  <- expected winner"
+echo "  Agent C  (Executor)   — bids \$0.007 USDC"
 echo ""
 
-# Cleanup function
+# ── Write keypairs to tmp files ───────────────────────────────────
+node --input-type=module <<'EOF'
+import { readFileSync, writeFileSync } from "node:fs";
+const walletsFile = process.env.WALLETS_FILE;
+const w = JSON.parse(readFileSync(walletsFile, "utf-8"));
+writeFileSync("/tmp/ik-agent-a-kp.json", JSON.stringify(w.agentA));
+writeFileSync("/tmp/ik-agent-b-kp.json", JSON.stringify(w.agentB));
+writeFileSync("/tmp/ik-agent-c-kp.json", JSON.stringify(w.agentC));
+console.log("  Keypairs written to /tmp/ik-agent-{a,b,c}-kp.json");
+EOF
+
+# ── Cleanup ───────────────────────────────────────────────────────
+EXECUTOR_B_PID=""
+EXECUTOR_C_PID=""
+
 cleanup() {
   echo ""
-  echo "Cleaning up..."
-  [ -n "${EXECUTOR_PID:-}" ] && kill "$EXECUTOR_PID" 2>/dev/null || true
-  rm -f /tmp/agent-a-kp.json /tmp/agent-b-kp.json
+  echo "[cleanup] Stopping background agents..."
+  [ -n "$EXECUTOR_B_PID" ] && kill "$EXECUTOR_B_PID" 2>/dev/null || true
+  [ -n "$EXECUTOR_C_PID" ] && kill "$EXECUTOR_C_PID" 2>/dev/null || true
+  rm -f /tmp/ik-agent-a-kp.json /tmp/ik-agent-b-kp.json /tmp/ik-agent-c-kp.json
+  echo ""
+  echo "══════════════════════════════════════════════════════════"
+  echo "  Demo finished. Artifacts:"
+  echo "    Delegator log:  $AGENT_A_LOG"
+  echo "    Executor B log: $AGENT_B_LOG"
+  echo "    Executor C log: $AGENT_C_LOG"
+  echo ""
+  echo "  To review executor logs:"
+  echo "    cat $AGENT_B_LOG"
+  echo "    cat $AGENT_C_LOG"
+  echo "══════════════════════════════════════════════════════════"
 }
 trap cleanup EXIT INT TERM
 
-# 1. Start executor agent in background
-echo "[1] Starting executor agent (Agent B)..."
-KEYPAIR="$AGENT_B_KP" \
+# ── Start Agent C (higher bid, background) ────────────────────────
+echo "[1/3] Starting Agent C (Executor, \$0.007 USDC) in background..."
+WALLETS_FILE="$WALLETS_FILE" \
+  KEYPAIR="/tmp/ik-agent-c-kp.json" \
+  BID_PRICE="0.007" \
+  TASK_TYPE="compute/llm-inference" \
   ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
   pnpm --dir "$DEMO_DIR" exec tsx src/agent-executor.ts \
-  > /tmp/executor-agent.log 2>&1 &
-EXECUTOR_PID=$!
-echo "  PID: $EXECUTOR_PID (log: /tmp/executor-agent.log)"
+  > "$AGENT_C_LOG" 2>&1 &
+EXECUTOR_C_PID=$!
+echo "  PID $EXECUTOR_C_PID -> $AGENT_C_LOG"
 
-# Give executor a head start to begin watching
-sleep 3
+# ── Start Agent B (lower bid, background) ────────────────────────
+echo "[2/3] Starting Agent B (Executor, \$0.003 USDC) in background..."
+WALLETS_FILE="$WALLETS_FILE" \
+  KEYPAIR="/tmp/ik-agent-b-kp.json" \
+  BID_PRICE="0.003" \
+  TASK_TYPE="compute/llm-inference" \
+  ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  pnpm --dir "$DEMO_DIR" exec tsx src/agent-executor.ts \
+  > "$AGENT_B_LOG" 2>&1 &
+EXECUTOR_B_PID=$!
+echo "  PID $EXECUTOR_B_PID -> $AGENT_B_LOG"
 
-# 2. Start delegator agent in foreground
-echo "[2] Starting delegator agent (Agent A)..."
+# Give executors a 5s head start so they're watching before commission is created
 echo ""
-KEYPAIR="$AGENT_A_KP" \
+echo "  Giving executors 5s head start..."
+sleep 5
+
+# ── Start Agent A (delegator, foreground) ────────────────────────
+echo ""
+echo "[3/3] Starting Agent A (Delegator) — running in foreground..."
+echo "──────────────────────────────────────────────────────────"
+echo ""
+
+WALLETS_FILE="$WALLETS_FILE" \
+  KEYPAIR="/tmp/ik-agent-a-kp.json" \
   TASK_PROMPT="$TASK_PROMPT" \
   ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
-  pnpm --dir "$DEMO_DIR" exec tsx src/agent-delegator.ts
+  pnpm --dir "$DEMO_DIR" exec tsx src/agent-delegator.ts \
+  2>&1 | tee "$AGENT_A_LOG"
 
 echo ""
-echo "══════════════════════════════════════════════════"
-echo "  Agent Demo Complete"
-echo "══════════════════════════════════════════════════"
-echo ""
-echo "Executor log: /tmp/executor-agent.log"
-echo ""
-echo "To view executor output:"
-echo "  cat /tmp/executor-agent.log"
+echo "──────────────────────────────────────────────────────────"
+echo "  Agent A complete. Waiting 10s for executors to finish..."
+sleep 10
