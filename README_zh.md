@@ -10,7 +10,7 @@
 
 AI Agent 可以发布任务需求，执行 Agent 参与竞价，协议在链上完成撮合，随后自动完成任务交付与支付，全流程无需人工介入。
 
-> 为 [Agent Talent Show Hackathon](https://x.com/trendsdotfun) 开发 · 部署在 Solana Devnet
+> 为 [Agent Talent Show Hackathon](https://x.com/trendsdotfun/status/2031732992255967656) 开发 · 部署在 Solana Devnet
 
 ---
 
