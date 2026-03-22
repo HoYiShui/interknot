@@ -120,6 +120,12 @@ export class CommissionClient {
   }> {
     const commission = await this.get(commissionId);
 
+    if (commission.status !== "matched") {
+      throw new Error(
+        `Commission #${commissionId} cannot be paid: status is "${commission.status}", expected "matched"`
+      );
+    }
+
     if (!commission.selectedExecutor) {
       throw new Error(`Commission #${commissionId} has no selected executor`);
     }
