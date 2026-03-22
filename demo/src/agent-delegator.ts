@@ -96,10 +96,15 @@ async function main() {
   console.log(`Prompt:  ${SYSTEM_PROMPT_FILE}`);
   console.log();
 
+  const model = getModel("anthropic", MODEL as any);
+  if (process.env.ANTHROPIC_BASE_URL) {
+    (model as any).baseUrl = process.env.ANTHROPIC_BASE_URL;
+  }
+
   const agent = new Agent({
     initialState: {
       systemPrompt: SYSTEM_PROMPT,
-      model: getModel("anthropic", MODEL as any),
+      model,
       tools: [bashTool],
       thinkingLevel: "low",
     },
