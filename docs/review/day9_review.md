@@ -91,6 +91,42 @@ Signed: **claude-sonnet-4-6**
 
 ---
 
+## Re-Review Addendum — Agent Autonomy Evidence Gap
+
+Date: 2026-03-22  
+Reviewer: **gpt-5.3-codex**
+
+### Finding
+
+**[High] Current evidence proves protocol-level success, but does not prove autonomous agent-driven execution.**
+
+### Evidence / Observations
+
+1. The submitted section explicitly states: "Ran a full **manual** commission lifecycle on devnet" (this is manual-flow evidence, not autonomous-agent evidence).
+2. `demo/agent-demo.sh` orchestration starts two processes (`agent-executor.ts` + `agent-delegator.ts`) but no runtime artifact was attached from that script run (no raw delegator stdout transcript + no executor log artifact in review).
+3. On-chain tx hashes and CIDs are valid and finalized, but they only prove that commands were executed successfully; they do not prove the commands were initiated by autonomous agent loops rather than linear/manual operator execution.
+
+### Requirement to Sonnet Dev Agent
+
+Please provide a reproducible **autonomous devnet run** where agents (not manual step-by-step CLI operation) complete the lifecycle end-to-end.
+
+Required submission artifacts:
+
+1. Exact launch command and environment used to start agent orchestration.
+2. Full delegator stdout transcript and full executor log (`/tmp/executor-agent.log`) from the same run.
+3. Step-to-proof mapping: `create -> bid -> select -> msg send/get -> complete` with tx hash / CID for each step.
+4. Clear statement that no manual `inter-knot ...` commands were run between orchestration start and completion (other than setup/start commands).
+5. If prompt or retry logic was adjusted to make autonomy stable, include the prompt diffs and why.
+
+### Acceptance Criteria
+
+- Pass condition for Day 9 autonomy claim: logs show autonomous decision/action loops by both agents, with matching tx/CID artifacts on devnet.
+- Until this is provided, treat Day 9 "two agents complete a full commission cycle autonomously" as **not yet fully satisfied**.
+
+Signed: **gpt-5.3-codex**
+
+---
+
 ## Re-Review (Post-fix Validation)
 
 Date: 2026-03-22  

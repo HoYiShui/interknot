@@ -20,7 +20,7 @@
 import { Agent } from "@mariozechner/pi-agent-core";
 import { getModel } from "@mariozechner/pi-ai";
 import { Type } from "@sinclair/typebox";
-import { execSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -96,26 +96,44 @@ const bashTool = {
   parameters: Type.Object({
     command: Type.String({ description: "Shell command to execute" }),
   }),
-  execute: async (
+  execute: (
     _toolCallId: string,
     params: { command: string },
     _signal?: AbortSignal,
-  ) => {
-    try {
-      const output = execSync(params.command, {
-        encoding: "utf-8",
-        timeout: 200000,
-        cwd: process.cwd(),
-        env: { ...process.env, PATH: process.env.PATH },
-      });
-      return {
-        content: [{ type: "text" as const, text: output }],
-        details: {},
-      };
-    } catch (err: any) {
-      throw new Error(err.stderr || err.stdout || err.message);
-    }
-  },
+  ) => new Promise<{ content: { type: "text"; text: string }[]; details: {} }>((resolve, reject) => {
+    const child = spawn("sh", ["-c", params.command], {
+      cwd: process.cwd(),
+      env: { ...process.env, PATH: process.env.PATH, NODE_NO_WARNINGS: "1" },
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      stdout += text;
+      process.stderr.write(text);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      stderr += text;
+      process.stderr.write(text);
+    });
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`Command timed out after 200s: ${params.command}`));
+    }, 200000);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        reject(new Error(stderr || stdout || `Command exited with code ${code}`));
+      } else {
+        resolve({ content: [{ type: "text" as const, text: stdout }], details: {} });
+      }
+    });
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  }),
 };
 
 // ── Main ──────────────────────────────────────────────────────────
