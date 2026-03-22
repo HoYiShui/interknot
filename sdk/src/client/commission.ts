@@ -172,11 +172,13 @@ export class CommissionClient {
   }): { stop: () => void } {
     const seen = new Set<number>();
 
-    // Emit a commission if it's open and not yet seen.
+    // Emit a commission if it's open, not expired, and not yet seen.
     const maybeEmit = (raw: any, address: PublicKey) => {
       try {
         if (raw.status?.open === undefined) return;
         if (params.taskType && raw.taskType !== params.taskType) return;
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (raw.deadline.toNumber() <= nowSec) return; // skip expired
         const c = this.parseCommission(raw, address);
         if (!seen.has(c.commissionId)) {
           seen.add(c.commissionId);
@@ -187,15 +189,19 @@ export class CommissionClient {
       }
     };
 
-    // Initial scan: emit any open commissions that already exist so callers
-    // don't miss commissions created before watch() was called.
+    // Initial scan: emit open, non-expired commissions created before watch() was called.
     this.list({ status: "open", taskType: params.taskType })
-      .then((existing) => existing.forEach((c) => {
-        if (!seen.has(c.commissionId)) {
-          seen.add(c.commissionId);
-          Promise.resolve(params.onNew(c)).catch(() => {});
-        }
-      }))
+      .then((existing) => {
+        const nowSec = Math.floor(Date.now() / 1000);
+        existing
+          .filter((c) => c.deadline.toNumber() > nowSec)
+          .forEach((c) => {
+            if (!seen.has(c.commissionId)) {
+              seen.add(c.commissionId);
+              Promise.resolve(params.onNew(c)).catch(() => {});
+            }
+          });
+      })
       .catch(() => {});
 
     // WebSocket subscription: fires on every account change for the program.

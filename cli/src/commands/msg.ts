@@ -124,9 +124,28 @@ export function msgCommand(): Command {
 
         const deliveryClient = new OnChainDeliveryClient(client);
 
-        // Determine role from commission account (always exists)
+        // Determine role from commission account.
+        // In --wait mode, if the commission is still open, poll until matched
+        // (or timeout) before evaluating executor role — the delegator may not
+        // have run match select yet when the executor reaches this point.
         const commissionPda = client.commissionPda(commissionId);
-        const rawCommission = await client.accounts.commission.fetch(commissionPda);
+        let rawCommission = await client.accounts.commission.fetch(commissionPda);
+
+        if (opts.wait) {
+          const timeoutMs = parseInt(opts.timeout) * 1000;
+          const deadline = Date.now() + timeoutMs;
+          const statusKey = () => Object.keys(rawCommission.status)[0];
+
+          while (statusKey() === "open" && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 3000));
+            rawCommission = await client.accounts.commission.fetch(commissionPda);
+          }
+
+          if (statusKey() === "open") {
+            throw new Error(`Timeout: commission #${commissionId} was never matched`);
+          }
+        }
+
         const isDelegator = rawCommission.delegator.toBase58() === myKey;
         const isExecutor = rawCommission.selectedExecutor?.toBase58() === myKey;
 
