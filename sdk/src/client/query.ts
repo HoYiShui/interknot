@@ -1,8 +1,8 @@
 import { PublicKey } from "@solana/web3.js";
 
-import { InterKnot } from "./program";
-import { Commission, parseCommissionStatus } from "../types/commission";
-import { Bid, parseBidStatus } from "../types/bid";
+import { InterKnot } from "./program.js";
+import { Commission, parseCommissionStatus } from "../types/commission.js";
+import { Bid, parseBidStatus } from "../types/bid.js";
 
 export class QueryClient {
   constructor(private readonly ik: InterKnot) {}

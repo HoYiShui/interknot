@@ -25,11 +25,11 @@ fi
 AGENT_A_KP=$(node -e "const w=JSON.parse(require('fs').readFileSync('$WALLETS_FILE','utf8')); process.stdout.write('/tmp/agent-a-kp.json')")
 AGENT_B_KP=$(node -e "const w=JSON.parse(require('fs').readFileSync('$WALLETS_FILE','utf8')); process.stdout.write('/tmp/agent-b-kp.json')")
 
-# Write keypair files (demo wallets are stored as arrays in the JSON)
+# Write keypair files (demo wallets are stored as number[] arrays directly)
 node -e "
 const w = JSON.parse(require('fs').readFileSync('$WALLETS_FILE','utf8'));
-require('fs').writeFileSync('/tmp/agent-a-kp.json', JSON.stringify(Array.from(w.agentA.secretKey)));
-require('fs').writeFileSync('/tmp/agent-b-kp.json', JSON.stringify(Array.from(w.agentB.secretKey)));
+require('fs').writeFileSync('/tmp/agent-a-kp.json', JSON.stringify(w.agentA));
+require('fs').writeFileSync('/tmp/agent-b-kp.json', JSON.stringify(w.agentB));
 "
 
 TASK_PROMPT="${TASK_PROMPT:-Translate to Japanese: Hello, how are you today?}"

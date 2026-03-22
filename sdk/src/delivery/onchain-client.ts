@@ -1,6 +1,6 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import BN from "bn.js";
-import { InterKnot } from "../client/program";
+import { InterKnot } from "../client/program.js";
 
 export interface TaskDelivery {
   commissionId: number;

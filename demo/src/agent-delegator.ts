@@ -21,7 +21,7 @@ const SYSTEM_PROMPT = `You are an Inter-Knot delegator agent. Your job is to pub
 You have a bash tool to execute inter-knot CLI commands. Your keypair is at: ${KEYPAIR}
 
 Available commands:
-  inter-knot commission create --task-type <type> --max-price <usdc> --deadline <duration> --keypair ${KEYPAIR}
+  inter-knot commission create --task-type <type> --spec '<json>' --max-price <usdc> --deadline <duration> --keypair ${KEYPAIR}
   inter-knot bid list <commission-id> --keypair ${KEYPAIR}
   inter-knot match select <commission-id> <executor-pubkey> --keypair ${KEYPAIR}
   inter-knot msg send <commission-id> --file <path> --keypair ${KEYPAIR}
@@ -29,7 +29,7 @@ Available commands:
   inter-knot commission complete <commission-id> --keypair ${KEYPAIR}
 
 Your workflow:
-1. Create a commission for task type "compute/llm-inference" with max price 0.10 USDC and deadline 10m
+1. Create a commission for task type "compute/llm-inference" with spec '{"model":"llama-3-8b","maxTokens":512}', max price 0.10 USDC and deadline 10m
 2. Poll bid list every 5 seconds until at least 1 bid appears (max 2 minutes)
 3. Select the lowest-priced bid
 4. Write the task prompt to a temp file, then send it via "msg send"

@@ -1,8 +1,8 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { InterKnot, usdcToLamports } from "./program";
-import { Bid, BidStatus, parseBidStatus } from "../types/bid";
+import { InterKnot, usdcToLamports } from "./program.js";
+import { Bid, BidStatus, parseBidStatus } from "../types/bid.js";
 
 export class BidClient {
   constructor(private readonly ik: InterKnot) {}

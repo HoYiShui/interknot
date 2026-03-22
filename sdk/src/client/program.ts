@@ -2,13 +2,13 @@ import { Program, AnchorProvider, Idl } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { CommissionClient } from "./commission";
-import { BidClient } from "./bid";
-import { MatchingClient } from "./matching";
-import { QueryClient } from "./query";
+import { CommissionClient } from "./commission.js";
+import { BidClient } from "./bid.js";
+import { MatchingClient } from "./matching.js";
+import { QueryClient } from "./query.js";
 
 // Bundled IDL — the SDK is self-contained, no repo-local file reads needed
-import defaultIdl from "../idl/inter_knot.json";
+import defaultIdl from "../idl/inter_knot.json" with { type: "json" };
 
 export const PROGRAM_ID = new PublicKey(
   "G33455TTFsdoxKHTLHE5MqFjUY8gCPBgZGxJKbAuuYSh"

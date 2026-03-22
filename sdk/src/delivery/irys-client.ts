@@ -1,5 +1,5 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { deriveSharedSecret, encrypt, decrypt } from "../crypto/ecdh";
+import { deriveSharedSecret, encrypt, decrypt } from "../crypto/ecdh.js";
 
 const IRYS_GATEWAY = "https://gateway.irys.xyz";
 const DEVNET_RPC = "https://api.devnet.solana.com";

@@ -47,6 +47,14 @@ export function msgCommand(): Command {
           );
         }
 
+        // Require commission to be in Matched state before accessing selectedExecutor
+        const statusKey = Object.keys(commission.status)[0];
+        if (statusKey !== "matched") {
+          throw new Error(
+            `Commission is not in Matched state (current: ${statusKey}). Wait for bid selection before sending a message.`
+          );
+        }
+
         // 2. Determine counterpart pubkey
         const counterpartPubkey = isDelegator
           ? commission.selectedExecutor!

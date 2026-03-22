@@ -2,13 +2,13 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import BN from "bn.js";
 import * as crypto from "crypto";
 
-import { InterKnot, usdcToLamports, parseDeadline } from "./program";
+import { InterKnot, usdcToLamports, parseDeadline } from "./program.js";
 import {
   Commission,
   CommissionStatus,
   CreateCommissionParams,
   parseCommissionStatus,
-} from "../types/commission";
+} from "../types/commission.js";
 
 export class CommissionClient {
   constructor(private readonly ik: InterKnot) {}

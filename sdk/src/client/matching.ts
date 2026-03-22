@@ -1,7 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 
-import { InterKnot } from "./program";
+import { InterKnot } from "./program.js";
 
 export class MatchingClient {
   constructor(private readonly ik: InterKnot) {}
