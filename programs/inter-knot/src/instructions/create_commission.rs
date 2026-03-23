@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::state::{PlatformConfig, Commission, CommissionStatus};
+use crate::state::{PlatformConfig, Commission, CommissionStatus, ReputationAccount};
 use crate::errors::InterKnotError;
 
 pub const MAX_TASK_TYPE_LEN: usize = 32;
@@ -26,6 +26,15 @@ pub struct CreateCommission<'info> {
         bump,
     )]
     pub commission: Account<'info, Commission>,
+
+    #[account(
+        init_if_needed,
+        payer = delegator,
+        space = 8 + ReputationAccount::INIT_SPACE,
+        seeds = [b"reputation", delegator.key().as_ref()],
+        bump,
+    )]
+    pub delegator_reputation: Account<'info, ReputationAccount>,
 
     pub system_program: Program<'info, System>,
 }
@@ -69,6 +78,16 @@ pub fn handle_create_commission(
     commission.completed_at = None;
     commission.min_executor_tier = min_executor_tier;
     commission.bump = ctx.bumps.commission;
+
+    // Initialize delegator reputation if new, then increment total_commissioned
+    let rep = &mut ctx.accounts.delegator_reputation;
+    if rep.created_at == 0 {
+        rep.wallet = ctx.accounts.delegator.key();
+        rep.bump = ctx.bumps.delegator_reputation;
+        rep.created_at = clock.unix_timestamp;
+    }
+    rep.total_commissioned = rep.total_commissioned.saturating_add(1);
+    rep.last_updated = clock.unix_timestamp;
 
     msg!("Commission {} created by {}", commission_id, ctx.accounts.delegator.key());
     Ok(())

@@ -23,6 +23,7 @@ export interface Commission {
   createdAt: BN;
   matchedAt: BN | null;
   completedAt: BN | null;
+  minExecutorTier: number | null;
   bump: number;
   /** The on-chain PDA address */
   address: PublicKey;
@@ -46,4 +47,6 @@ export interface CreateCommissionParams {
   taskSpecUri: string;
   maxPrice: number;
   deadline: string | number;
+  /** Optional minimum executor tier (0=Guest, 1=Trusted, 2=Verified, 3=Elite) */
+  minExecutorTier?: number;
 }

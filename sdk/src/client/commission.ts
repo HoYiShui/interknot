@@ -39,18 +39,23 @@ export class CommissionClient {
 
     const commissionPda = this.ik.commissionPda(commissionId);
 
+    const delegatorReputation = this.ik.reputationPda(this.ik.wallet.publicKey);
+    const minExecutorTier = params.minExecutorTier != null ? params.minExecutorTier : null;
+
     const txSignature = await this.ik.program.methods
       .createCommission(
         params.taskType,
         taskSpecHash,
         params.taskSpecUri,
         maxPrice,
-        deadline
+        deadline,
+        minExecutorTier
       )
       .accounts({
         delegator: this.ik.wallet.publicKey,
         config: this.ik.configPda,
         commission: commissionPda,
+        delegatorReputation,
         systemProgram: SystemProgram.programId,
       })
       .rpc();
@@ -103,11 +108,25 @@ export class CommissionClient {
 
   async complete(commissionId: number): Promise<{ txSignature: string }> {
     const commissionPda = this.ik.commissionPda(commissionId);
+
+    // Fetch commission to derive executor and both reputation PDAs
+    const commission = await this.get(commissionId);
+    if (!commission.selectedExecutor) {
+      throw new Error(`Commission #${commissionId} has no selected executor`);
+    }
+    const executor = commission.selectedExecutor;
+    const executorReputation = this.ik.reputationPda(executor);
+    const delegatorReputation = this.ik.reputationPda(this.ik.wallet.publicKey);
+
     const txSignature = await this.ik.program.methods
       .completeCommission(new BN(commissionId))
       .accounts({
         delegator: this.ik.wallet.publicKey,
         commission: commissionPda,
+        executor,
+        executorReputation,
+        delegatorReputation,
+        systemProgram: SystemProgram.programId,
       })
       .rpc();
     return { txSignature };
@@ -246,6 +265,7 @@ export class CommissionClient {
       createdAt: raw.createdAt,
       matchedAt: raw.matchedAt ?? null,
       completedAt: raw.completedAt ?? null,
+      minExecutorTier: raw.minExecutorTier ?? null,
       bump: raw.bump,
       address,
     };

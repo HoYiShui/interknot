@@ -10,7 +10,7 @@ pub struct InitReputation<'info> {
     pub wallet: UncheckedAccount<'info>,
 
     #[account(
-        init,
+        init_if_needed,
         payer = payer,
         space = 8 + ReputationAccount::INIT_SPACE,
         seeds = [b"reputation", wallet.key().as_ref()],
@@ -22,8 +22,14 @@ pub struct InitReputation<'info> {
 }
 
 pub fn handle_init_reputation(ctx: Context<InitReputation>) -> Result<()> {
-    let clock = Clock::get()?;
     let rep = &mut ctx.accounts.reputation;
+
+    // No-op if already initialized
+    if rep.created_at != 0 {
+        return Ok(());
+    }
+
+    let clock = Clock::get()?;
     rep.wallet = ctx.accounts.wallet.key();
     rep.total_bids = 0;
     rep.total_completed = 0;

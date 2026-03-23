@@ -83,6 +83,7 @@ export class QueryClient {
       createdAt: raw.createdAt,
       matchedAt: raw.matchedAt ?? null,
       completedAt: raw.completedAt ?? null,
+      minExecutorTier: raw.minExecutorTier ?? null,
       bump: raw.bump,
       address,
     };

@@ -18,12 +18,15 @@ export class BidClient {
     const bidPda = this.ik.bidPda(commissionId, this.ik.wallet.publicKey);
     const price = usdcToLamports(params.price);
 
+    const executorReputation = this.ik.reputationPda(this.ik.wallet.publicKey);
+
     const txSignature = await this.ik.program.methods
       .submitBid(new BN(commissionId), price, params.serviceEndpoint)
       .accounts({
         executor: this.ik.wallet.publicKey,
         commission: commissionPda,
         bid: bidPda,
+        executorReputation,
         systemProgram: SystemProgram.programId,
       })
       .rpc();

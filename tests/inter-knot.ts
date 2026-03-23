@@ -115,6 +115,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: pda,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -133,6 +134,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: pda,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -150,6 +152,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: pda,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -164,6 +167,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: pda,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -678,6 +682,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: commPda,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -989,6 +994,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: commPda5,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -1227,6 +1233,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: commPda6,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -1404,23 +1411,23 @@ describe("inter-knot", () => {
       expect(rep.createdAt.toNumber()).to.be.greaterThan(0);
     });
 
-    it("fails: init_reputation twice for the same wallet", async () => {
+    it("init_reputation is idempotent (second call is a no-op)", async () => {
       const [repPda] = reputationPda(executorF.publicKey);
 
-      try {
-        await program.methods
-          .initReputation()
-          .accounts({
-            payer: authority.publicKey,
-            wallet: executorF.publicKey,
-            reputation: repPda,
-            systemProgram: SystemProgram.programId,
-          })
-          .rpc();
-        expect.fail("Should have thrown");
-      } catch (err) {
-        expect(err).to.exist;
-      }
+      // Should not throw — second call is a no-op
+      await program.methods
+        .initReputation()
+        .accounts({
+          payer: authority.publicKey,
+          wallet: executorF.publicKey,
+          reputation: repPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      // Data unchanged
+      const rep = await program.account.reputationAccount.fetch(repPda);
+      expect(rep.wallet.toBase58()).to.equal(executorF.publicKey.toBase58());
     });
 
     it("submit_bid auto-creates ReputationAccount and increments total_bids", async () => {
@@ -1432,6 +1439,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: commPda7,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();
@@ -1525,6 +1533,7 @@ describe("inter-knot", () => {
           delegator: authority.publicKey,
           config: configPda,
           commission: commPda8,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .rpc();

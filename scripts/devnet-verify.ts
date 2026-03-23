@@ -36,6 +36,13 @@ function bidPda(commissionId: number, executor: PublicKey): [PublicKey, number] 
   );
 }
 
+function reputationPda(wallet: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("reputation"), wallet.toBuffer()],
+    PROGRAM_ID
+  );
+}
+
 async function main() {
   console.log("═══════════════════════════════════════════");
   console.log("  Inter-Knot Devnet Verification");
@@ -133,18 +140,21 @@ async function main() {
   const deadline = new BN(Math.floor(Date.now() / 1000) + 600); // 10 min
   const [commPda] = commissionPda(nextId);
 
+  const [delegatorRepPda] = reputationPda(authority.publicKey);
   const createTx = await program.methods
     .createCommission(
       "compute/llm-inference",
       taskSpecHash,
       "https://example.com/devnet-test-spec.json",
       new BN(500_000), // 0.50 USDC
-      deadline
+      deadline,
+      null  // no min_executor_tier
     )
     .accounts({
       delegator: authority.publicKey,
       config: configPda,
       commission: commPda,
+      delegatorReputation: delegatorRepPda,
       systemProgram: SystemProgram.programId,
     })
     .rpc();
@@ -157,12 +167,14 @@ async function main() {
   console.log(`\n[4/6] Executor submitting bid...`);
   const [bPda] = bidPda(nextId, executor.publicKey);
 
+  const [executorRepPda] = reputationPda(executor.publicKey);
   const bidTx = await program.methods
     .submitBid(new BN(nextId), new BN(350_000), "http://executor-test:8080/tasks")
     .accounts({
       executor: executor.publicKey,
       commission: commPda,
       bid: bPda,
+      executorReputation: executorRepPda,
       systemProgram: SystemProgram.programId,
     })
     .signers([executor])
@@ -195,6 +207,10 @@ async function main() {
     .accounts({
       delegator: authority.publicKey,
       commission: commPda,
+      executor: executor.publicKey,
+      executorReputation: executorRepPda,
+      delegatorReputation: delegatorRepPda,
+      systemProgram: SystemProgram.programId,
     })
     .rpc();
   console.log(`  ✓ CompleteCommission tx: ${completeTx}`);
