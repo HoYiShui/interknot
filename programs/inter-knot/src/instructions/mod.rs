@@ -8,6 +8,7 @@ pub mod withdraw_bid;
 pub mod create_delivery;
 pub mod submit_input;
 pub mod submit_output;
+pub mod init_reputation;
 
 pub use initialize::*;
 pub use create_commission::*;
@@ -19,3 +20,4 @@ pub use withdraw_bid::*;
 pub use create_delivery::*;
 pub use submit_input::*;
 pub use submit_output::*;
+pub use init_reputation::*;

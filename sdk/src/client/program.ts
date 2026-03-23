@@ -6,6 +6,7 @@ import { CommissionClient } from "./commission.js";
 import { BidClient } from "./bid.js";
 import { MatchingClient } from "./matching.js";
 import { QueryClient } from "./query.js";
+import { ReputationClient } from "./reputation.js";
 
 // Bundled IDL — the SDK is self-contained, no repo-local file reads needed
 import defaultIdl from "../idl/inter_knot.json" with { type: "json" };
@@ -62,6 +63,7 @@ export class InterKnot {
   readonly bid: BidClient;
   readonly matching: MatchingClient;
   readonly query: QueryClient;
+  readonly reputation: ReputationClient;
 
   constructor(config: InterKnotConfig) {
     this.wallet = config.wallet;
@@ -97,6 +99,7 @@ export class InterKnot {
     this.bid = new BidClient(this);
     this.matching = new MatchingClient(this);
     this.query = new QueryClient(this);
+    this.reputation = new ReputationClient(this);
   }
 
   /** Typed account accessor (shortcut for program.account cast) */
@@ -111,6 +114,10 @@ export class InterKnot {
       all: () => Promise<{ publicKey: PublicKey; account: any }[]>;
     };
     taskDelivery: {
+      fetch: (address: PublicKey) => Promise<any>;
+      all: () => Promise<{ publicKey: PublicKey; account: any }[]>;
+    };
+    reputationAccount: {
       fetch: (address: PublicKey) => Promise<any>;
       all: () => Promise<{ publicKey: PublicKey; account: any }[]>;
     };
@@ -157,6 +164,15 @@ export class InterKnot {
         Buffer.from("delivery"),
         new BN(commissionId).toArrayLike(Buffer, "le", 8),
       ],
+      this.programId
+    );
+    return pda;
+  }
+
+  /** Derive a ReputationAccount PDA */
+  reputationPda(wallet: PublicKey): PublicKey {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("reputation"), wallet.toBuffer()],
       this.programId
     );
     return pda;

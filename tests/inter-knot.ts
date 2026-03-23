@@ -110,7 +110,7 @@ describe("inter-knot", () => {
     it("creates commission #0", async () => {
       const [pda] = commissionPda(0);
       await program.methods
-        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
         .accounts({
           delegator: authority.publicKey,
           config: configPda,
@@ -128,7 +128,7 @@ describe("inter-knot", () => {
     it("creates commission #1", async () => {
       const [pda] = commissionPda(1);
       await program.methods
-        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
         .accounts({
           delegator: authority.publicKey,
           config: configPda,
@@ -145,7 +145,7 @@ describe("inter-knot", () => {
     it("creates commission #2 (for cancel test)", async () => {
       const [pda] = commissionPda(2);
       await program.methods
-        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
         .accounts({
           delegator: authority.publicKey,
           config: configPda,
@@ -159,7 +159,7 @@ describe("inter-knot", () => {
     it("creates commission #3 (for withdraw test)", async () => {
       const [pda] = commissionPda(3);
       await program.methods
-        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
         .accounts({
           delegator: authority.publicKey,
           config: configPda,
@@ -173,7 +173,7 @@ describe("inter-knot", () => {
       const [pda] = commissionPda(4);
       try {
         await program.methods
-          .createCommission(taskType, taskSpecHash, taskSpecUri, new BN(0), futureDeadline())
+          .createCommission(taskType, taskSpecHash, taskSpecUri, new BN(0), futureDeadline(), null)
           .accounts({
             delegator: authority.publicKey,
             config: configPda,
@@ -193,7 +193,7 @@ describe("inter-knot", () => {
         await program.methods
           .createCommission(
             taskType, taskSpecHash, taskSpecUri, maxPrice,
-            new BN(Math.floor(Date.now() / 1000) - 100)
+            new BN(Math.floor(Date.now() / 1000) - 100), null
           )
           .accounts({
             delegator: authority.publicKey,
@@ -212,7 +212,7 @@ describe("inter-knot", () => {
       const [pda] = commissionPda(4);
       try {
         await program.methods
-          .createCommission("a".repeat(33), taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+          .createCommission("a".repeat(33), taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
           .accounts({
             delegator: authority.publicKey,
             config: configPda,
@@ -248,6 +248,7 @@ describe("inter-knot", () => {
           executor: executorB.publicKey,
           commission: commPda,
           bid: pda,
+          executorReputation: reputationPda(executorB.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .signers([executorB])
@@ -274,6 +275,7 @@ describe("inter-knot", () => {
           executor: executorC.publicKey,
           commission: commPda,
           bid: pda,
+          executorReputation: reputationPda(executorC.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .signers([executorC])
@@ -294,6 +296,7 @@ describe("inter-knot", () => {
             executor: authority.publicKey,
             commission: commPda,
             bid: pda,
+            executorReputation: reputationPda(authority.publicKey)[0],
             systemProgram: SystemProgram.programId,
           })
           .rpc();
@@ -314,6 +317,7 @@ describe("inter-knot", () => {
             executor: executorB.publicKey,
             commission: commPda,
             bid: pda,
+            executorReputation: reputationPda(executorB.publicKey)[0],
             systemProgram: SystemProgram.programId,
           })
           .signers([executorB])
@@ -335,6 +339,7 @@ describe("inter-knot", () => {
             executor: executorB.publicKey,
             commission: commPda,
             bid: pda,
+            executorReputation: reputationPda(executorB.publicKey)[0],
             systemProgram: SystemProgram.programId,
           })
           .signers([executorB])
@@ -356,6 +361,7 @@ describe("inter-knot", () => {
           executor: executorB.publicKey,
           commission: commPda,
           bid: pda,
+          executorReputation: reputationPda(executorB.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .signers([executorB])
@@ -401,6 +407,7 @@ describe("inter-knot", () => {
           executor: executorC.publicKey,
           commission: commPda,
           bid: bPda,
+          executorReputation: reputationPda(executorC.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .signers([executorC])
@@ -451,6 +458,10 @@ describe("inter-knot", () => {
         .accounts({
           delegator: authority.publicKey,
           commission: commPda,
+          executor: executorB.publicKey,
+          executorReputation: reputationPda(executorB.publicKey)[0],
+          delegatorReputation: reputationPda(authority.publicKey)[0],
+          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -468,6 +479,10 @@ describe("inter-knot", () => {
           .accounts({
             delegator: authority.publicKey,
             commission: commPda,
+            executor: authority.publicKey,
+            executorReputation: reputationPda(authority.publicKey)[0],
+            delegatorReputation: reputationPda(authority.publicKey)[0],
+            systemProgram: SystemProgram.programId,
           })
           .rpc();
         expect.fail("Should have thrown");
@@ -496,6 +511,10 @@ describe("inter-knot", () => {
           .accounts({
             delegator: executorB.publicKey,
             commission: commPda,
+            executor: executorC.publicKey,
+            executorReputation: reputationPda(executorC.publicKey)[0],
+            delegatorReputation: reputationPda(executorB.publicKey)[0],
+            systemProgram: SystemProgram.programId,
           })
           .signers([executorB])
           .rpc();
@@ -652,7 +671,8 @@ describe("inter-knot", () => {
           taskSpecHash,
           "https://example.com/lifecycle-spec.json",
           new BN(1_000_000), // 1 USDC
-          futureDeadline()
+          futureDeadline(),
+          null
         )
         .accounts({
           delegator: authority.publicKey,
@@ -678,6 +698,7 @@ describe("inter-knot", () => {
           executor: executorD.publicKey,
           commission: commPda,
           bid: bidPdaD,
+          executorReputation: reputationPda(executorD.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .signers([executorD])
@@ -714,6 +735,10 @@ describe("inter-knot", () => {
         .accounts({
           delegator: authority.publicKey,
           commission: commPda,
+          executor: executorD.publicKey,
+          executorReputation: reputationPda(executorD.publicKey)[0],
+          delegatorReputation: reputationPda(authority.publicKey)[0],
+          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -748,6 +773,7 @@ describe("inter-knot", () => {
             executor: executorE.publicKey,
             commission: commPda,
             bid: bPda,
+            executorReputation: reputationPda(executorE.publicKey)[0],
             systemProgram: SystemProgram.programId,
           })
           .signers([executorE])
@@ -770,6 +796,7 @@ describe("inter-knot", () => {
             executor: executorE.publicKey,
             commission: commPda,
             bid: bPda,
+            executorReputation: reputationPda(executorE.publicKey)[0],
             systemProgram: SystemProgram.programId,
           })
           .signers([executorE])
@@ -790,6 +817,10 @@ describe("inter-knot", () => {
           .accounts({
             delegator: authority.publicKey,
             commission: commPda,
+            executor: executorB.publicKey,
+            executorReputation: reputationPda(executorB.publicKey)[0],
+            delegatorReputation: reputationPda(authority.publicKey)[0],
+            systemProgram: SystemProgram.programId,
           })
           .rpc();
         expect.fail("Should have thrown");
@@ -872,6 +903,14 @@ describe("inter-knot", () => {
     );
   }
 
+  // Helper: derive reputation PDA
+  function reputationPda(wallet: PublicKey): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from("reputation"), wallet.toBuffer()],
+      program.programId
+    );
+  }
+
   describe("create_delivery", () => {
     // Commission #1 is in Matched status (selected_executor = executorC)
     // Commission #0 is Completed, #2 is Cancelled, #3 is Open, #4 is Completed
@@ -945,7 +984,7 @@ describe("inter-knot", () => {
       // Need a fresh matched commission. Create #5, bid, select.
       const [commPda5] = commissionPda(5);
       await program.methods
-        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
         .accounts({
           delegator: authority.publicKey,
           config: configPda,
@@ -961,6 +1000,7 @@ describe("inter-knot", () => {
           executor: executorB.publicKey,
           commission: commPda5,
           bid: bidPda5,
+          executorReputation: reputationPda(executorB.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .signers([executorB])
@@ -1182,7 +1222,7 @@ describe("inter-knot", () => {
       // Create commission #6, bid, select, create delivery.
       const [commPda6] = commissionPda(6);
       await program.methods
-        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline())
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
         .accounts({
           delegator: authority.publicKey,
           config: configPda,
@@ -1198,6 +1238,7 @@ describe("inter-knot", () => {
           executor: executorB.publicKey,
           commission: commPda6,
           bid: bidPda6,
+          executorReputation: reputationPda(executorB.publicKey)[0],
           systemProgram: SystemProgram.programId,
         })
         .signers([executorB])
@@ -1318,11 +1359,195 @@ describe("inter-knot", () => {
         .accounts({
           delegator: authority.publicKey,
           commission: commPda6,
+          executor: executorB.publicKey,
+          executorReputation: reputationPda(executorB.publicKey)[0],
+          delegatorReputation: reputationPda(authority.publicKey)[0],
+          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
       const commission = await program.account.commission.fetch(commPda6);
       expect(JSON.stringify(commission.status)).to.equal(JSON.stringify({ completed: {} }));
+    });
+  });
+
+  // ═══════════════════════════════════════════
+  // Day 11: Reputation system
+  // ═══════════════════════════════════════════
+
+  describe("reputation", () => {
+    const executorF = Keypair.generate();
+
+    before(async () => {
+      await airdrop(executorF.publicKey);
+    });
+
+    it("init_reputation creates a zeroed ReputationAccount", async () => {
+      const [repPda] = reputationPda(executorF.publicKey);
+
+      await program.methods
+        .initReputation()
+        .accounts({
+          payer: authority.publicKey,
+          wallet: executorF.publicKey,
+          reputation: repPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      const rep = await program.account.reputationAccount.fetch(repPda);
+      expect(rep.wallet.toBase58()).to.equal(executorF.publicKey.toBase58());
+      expect(rep.totalBids).to.equal(0);
+      expect(rep.totalCompleted).to.equal(0);
+      expect(rep.totalPaid).to.equal(0);
+      expect(rep.uniqueCounterparties).to.equal(0);
+      expect(rep.createdAt.toNumber()).to.be.greaterThan(0);
+    });
+
+    it("fails: init_reputation twice for the same wallet", async () => {
+      const [repPda] = reputationPda(executorF.publicKey);
+
+      try {
+        await program.methods
+          .initReputation()
+          .accounts({
+            payer: authority.publicKey,
+            wallet: executorF.publicKey,
+            reputation: repPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("submit_bid auto-creates ReputationAccount and increments total_bids", async () => {
+      // Commission #7: used for reputation tests
+      const [commPda7] = commissionPda(7);
+      await program.methods
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
+        .accounts({
+          delegator: authority.publicKey,
+          config: configPda,
+          commission: commPda7,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      const [bidPda7] = bidPda(7, executorF.publicKey);
+      const [repPda] = reputationPda(executorF.publicKey);
+
+      // executorF already has a reputation account from init_reputation above
+      await program.methods
+        .submitBid(new BN(7), new BN(300_000), "http://localhost:9999/tasks")
+        .accounts({
+          executor: executorF.publicKey,
+          commission: commPda7,
+          bid: bidPda7,
+          executorReputation: repPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([executorF])
+        .rpc();
+
+      const rep = await program.account.reputationAccount.fetch(repPda);
+      expect(rep.totalBids).to.equal(1);
+      expect(rep.totalCompleted).to.equal(0);
+    });
+
+    it("complete_commission increments executor total_completed and delegator total_paid", async () => {
+      // Select executorF for commission #7, then complete
+      const [commPda7] = commissionPda(7);
+      const [bidPda7] = bidPda(7, executorF.publicKey);
+
+      await program.methods
+        .selectBid(new BN(7))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda7,
+          bid: bidPda7,
+        })
+        .rpc();
+
+      const [repPdaF] = reputationPda(executorF.publicKey);
+      const [repPdaAuth] = reputationPda(authority.publicKey);
+
+      // Read baseline delegator counter before completing
+      let delegatorRepBefore: any;
+      try {
+        delegatorRepBefore = await program.account.reputationAccount.fetch(repPdaAuth);
+      } catch {
+        delegatorRepBefore = { totalPaid: { toNumber: () => 0 }, uniqueCounterparties: { toNumber: () => 0 } };
+      }
+
+      await program.methods
+        .completeCommission(new BN(7))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda7,
+          executor: executorF.publicKey,
+          executorReputation: repPdaF,
+          delegatorReputation: repPdaAuth,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      // Executor reputation: total_completed should be 1
+      const repF = await program.account.reputationAccount.fetch(repPdaF);
+      expect(repF.totalCompleted).to.equal(1);
+      expect(repF.uniqueCounterparties).to.equal(1);
+
+      // Delegator reputation: total_paid should have incremented
+      const repAuth = await program.account.reputationAccount.fetch(repPdaAuth);
+      expect(repAuth.totalPaid).to.be.greaterThanOrEqual(1);
+      expect(repAuth.uniqueCounterparties).to.be.greaterThanOrEqual(1);
+    });
+
+    it("multiple completions accumulate correctly", async () => {
+      // executorB completed commissions #0 and #6 in earlier tests
+      const [repPdaB] = reputationPda(executorB.publicKey);
+      const repB = await program.account.reputationAccount.fetch(repPdaB);
+      // total_completed should be at least 2 (#0 and #6)
+      expect(repB.totalCompleted).to.be.greaterThanOrEqual(2);
+    });
+
+    it("tier gate: commission with min_executor_tier=1 rejects guest executor", async () => {
+      const executorGuest = Keypair.generate();
+      await airdrop(executorGuest.publicKey);
+
+      // Commission #8: requires Trusted (tier 1)
+      const [commPda8] = commissionPda(8);
+      await program.methods
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), 1)
+        .accounts({
+          delegator: authority.publicKey,
+          config: configPda,
+          commission: commPda8,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      const [bidPda8] = bidPda(8, executorGuest.publicKey);
+      const [repPdaGuest] = reputationPda(executorGuest.publicKey);
+
+      try {
+        await program.methods
+          .submitBid(new BN(8), new BN(300_000), "http://localhost:8080/tasks")
+          .accounts({
+            executor: executorGuest.publicKey,
+            commission: commPda8,
+            bid: bidPda8,
+            executorReputation: repPdaGuest,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([executorGuest])
+          .rpc();
+        expect.fail("Should have thrown");
+      } catch (err: any) {
+        expect(err.error.errorCode.code).to.equal("InsufficientReputation");
+      }
     });
   });
 });

@@ -42,4 +42,6 @@ pub enum InterKnotError {
     CidTooLong,
     #[msg("CID must not be empty")]
     CidEmpty,
+    #[msg("Executor reputation tier does not meet commission minimum requirement")]
+    InsufficientReputation,
 }

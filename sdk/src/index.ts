@@ -7,6 +7,7 @@ export { CommissionClient } from "./client/commission.js";
 export { BidClient } from "./client/bid.js";
 export { MatchingClient } from "./client/matching.js";
 export { QueryClient } from "./client/query.js";
+export { ReputationClient } from "./client/reputation.js";
 
 // Server (executor side)
 export { createTaskServer, startTaskServer, TaskServerConfig } from "./server/task-server.js";
@@ -34,6 +35,15 @@ export { PricingContext, PriceEstimate, PricingFunction } from "./pricing/types.
 
 // Utils
 export { withReconnect } from "./utils/ws-reconnect.js";
+
+// Reputation
+export {
+  ReputationTier,
+  ReputationScore,
+  ReputationAccount,
+  computeTier,
+  computeReputationScore,
+} from "./reputation/score.js";
 
 // Types
 export {

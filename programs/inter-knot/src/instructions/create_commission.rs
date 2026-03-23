@@ -37,6 +37,7 @@ pub fn handle_create_commission(
     task_spec_uri: String,
     max_price: u64,
     deadline: i64,
+    min_executor_tier: Option<u8>,
 ) -> Result<()> {
     require!(task_type.len() <= MAX_TASK_TYPE_LEN, InterKnotError::TaskTypeTooLong);
     require!(task_spec_uri.len() <= MAX_TASK_SPEC_URI_LEN, InterKnotError::TaskSpecUriTooLong);
@@ -66,6 +67,7 @@ pub fn handle_create_commission(
     commission.created_at = clock.unix_timestamp;
     commission.matched_at = None;
     commission.completed_at = None;
+    commission.min_executor_tier = min_executor_tier;
     commission.bump = ctx.bumps.commission;
 
     msg!("Commission {} created by {}", commission_id, ctx.accounts.delegator.key());

@@ -23,6 +23,7 @@ pub mod inter_knot {
         task_spec_uri: String,
         max_price: u64,
         deadline: i64,
+        min_executor_tier: Option<u8>,
     ) -> Result<()> {
         instructions::create_commission::handle_create_commission(
             ctx,
@@ -31,6 +32,7 @@ pub mod inter_knot {
             task_spec_uri,
             max_price,
             deadline,
+            min_executor_tier,
         )
     }
 
@@ -92,5 +94,9 @@ pub mod inter_knot {
         output_cid: String,
     ) -> Result<()> {
         instructions::submit_output::handle_submit_output(ctx, commission_id, output_cid)
+    }
+
+    pub fn init_reputation(ctx: Context<InitReputation>) -> Result<()> {
+        instructions::init_reputation::handle_init_reputation(ctx)
     }
 }

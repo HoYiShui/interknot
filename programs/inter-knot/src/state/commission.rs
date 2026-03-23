@@ -43,6 +43,8 @@ pub struct Commission {
     pub matched_at: Option<i64>,
     /// When marked complete
     pub completed_at: Option<i64>,
+    /// Minimum executor reputation tier required to bid (0=Guest,1=Trusted,2=Verified,3=Elite)
+    pub min_executor_tier: Option<u8>,
     /// PDA bump seed
     pub bump: u8,
 }
