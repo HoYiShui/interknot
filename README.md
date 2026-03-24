@@ -1,7 +1,7 @@
 # Inter-Knot
 
 <p align="center">
-  <img src="./assets/logo/interknot-logo-primary.png" alt="Inter-Knot logo" width="680" />
+  <img src="./assets/logo/interknot-logo-primary.svg" alt="Inter-Knot logo" width="680" />
 </p>
 
 English ｜ [中文](./README_zh.md)
