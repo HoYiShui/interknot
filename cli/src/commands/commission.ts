@@ -14,6 +14,7 @@ export function commissionCommand(): Command {
     .requiredOption("--max-price <usdc>", "Maximum price in USDC (e.g. 0.50)")
     .requiredOption("--deadline <duration>", "Deadline (e.g. 5m, 1h, 30s)")
     .option("--spec-uri <uri>", "Task spec URI (auto-encoded data: URI if omitted)")
+    .option("--min-executor-tier <tier>", "Minimum executor tier (0=Guest, 1=Trusted, 2=Verified, 3=Elite)")
     .option("--keypair <path>", "Keypair file path")
     .action(async (opts) => {
       try {
@@ -31,12 +32,16 @@ export function commissionCommand(): Command {
           process.exit(1);
         }
 
+        const minExecutorTier = opts.minExecutorTier != null
+          ? parseInt(opts.minExecutorTier) : undefined;
+
         const { commissionId, txSignature } = await client.commission.create({
           taskType: opts.taskType,
           taskSpec,
           taskSpecUri,
           maxPrice,
           deadline: opts.deadline,
+          minExecutorTier,
         });
 
         printSuccess("Commission created");

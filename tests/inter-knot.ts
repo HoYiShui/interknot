@@ -530,14 +530,21 @@ describe("inter-knot", () => {
   });
 
   describe("cancel_commission", () => {
-    it("delegator cancels commission #2", async () => {
+    it("delegator cancels open commission #2", async () => {
       const [commPda] = commissionPda(2);
+      const dummyExecutor = Keypair.generate();
+      const [dummyRepPda] = reputationPda(dummyExecutor.publicKey);
+      const [delegatorRepPda] = reputationPda(authority.publicKey);
 
       await program.methods
         .cancelCommission(new BN(2))
         .accounts({
           delegator: authority.publicKey,
           commission: commPda,
+          executor: dummyExecutor.publicKey,
+          executorReputation: dummyRepPda,
+          delegatorReputation: delegatorRepPda,
+          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -545,25 +552,35 @@ describe("inter-knot", () => {
       expect(JSON.stringify(commission.status)).to.equal(JSON.stringify({ cancelled: {} }));
     });
 
-    it("fails: cancel already-matched commission #0", async () => {
-      const [commPda] = commissionPda(0);
+    it("fails: cancel already-cancelled commission #2", async () => {
+      const [commPda] = commissionPda(2);
+      const dummyExecutor = Keypair.generate();
+      const [dummyRepPda] = reputationPda(dummyExecutor.publicKey);
+      const [delegatorRepPda] = reputationPda(authority.publicKey);
 
       try {
         await program.methods
-          .cancelCommission(new BN(0))
+          .cancelCommission(new BN(2))
           .accounts({
             delegator: authority.publicKey,
             commission: commPda,
+            executor: dummyExecutor.publicKey,
+            executorReputation: dummyRepPda,
+            delegatorReputation: delegatorRepPda,
+            systemProgram: SystemProgram.programId,
           })
           .rpc();
         expect.fail("Should have thrown");
       } catch (err: any) {
-        expect(err.error.errorCode.code).to.equal("CommissionNotOpen");
+        expect(err.error.errorCode.code).to.equal("CommissionNotCancellable");
       }
     });
 
     it("fails: non-delegator tries to cancel", async () => {
       const [commPda] = commissionPda(3);
+      const dummyExecutor = Keypair.generate();
+      const [dummyRepPda] = reputationPda(dummyExecutor.publicKey);
+      const [delegatorRepPda] = reputationPda(executorB.publicKey);
 
       try {
         await program.methods
@@ -571,6 +588,10 @@ describe("inter-knot", () => {
           .accounts({
             delegator: executorB.publicKey,
             commission: commPda,
+            executor: dummyExecutor.publicKey,
+            executorReputation: dummyRepPda,
+            delegatorReputation: delegatorRepPda,
+            systemProgram: SystemProgram.programId,
           })
           .signers([executorB])
           .rpc();
@@ -836,6 +857,9 @@ describe("inter-knot", () => {
 
     it("fails: cancel a completed commission", async () => {
       const [commPda] = commissionPda(0);
+      const dummyExecutor = Keypair.generate();
+      const [dummyRepPda] = reputationPda(dummyExecutor.publicKey);
+      const [delegatorRepPda] = reputationPda(authority.publicKey);
 
       try {
         await program.methods
@@ -843,11 +867,15 @@ describe("inter-knot", () => {
           .accounts({
             delegator: authority.publicKey,
             commission: commPda,
+            executor: dummyExecutor.publicKey,
+            executorReputation: dummyRepPda,
+            delegatorReputation: delegatorRepPda,
+            systemProgram: SystemProgram.programId,
           })
           .rpc();
         expect.fail("Should have thrown");
       } catch (err: any) {
-        expect(err.error.errorCode.code).to.equal("CommissionNotOpen");
+        expect(err.error.errorCode.code).to.equal("CommissionNotCancellable");
       }
     });
 
@@ -874,6 +902,9 @@ describe("inter-knot", () => {
 
     it("fails: cancel a cancelled commission", async () => {
       const [commPda] = commissionPda(2);
+      const dummyExecutor = Keypair.generate();
+      const [dummyRepPda] = reputationPda(dummyExecutor.publicKey);
+      const [delegatorRepPda] = reputationPda(authority.publicKey);
 
       try {
         await program.methods
@@ -881,11 +912,15 @@ describe("inter-knot", () => {
           .accounts({
             delegator: authority.publicKey,
             commission: commPda,
+            executor: dummyExecutor.publicKey,
+            executorReputation: dummyRepPda,
+            delegatorReputation: delegatorRepPda,
+            systemProgram: SystemProgram.programId,
           })
           .rpc();
         expect.fail("Should have thrown");
       } catch (err: any) {
-        expect(err.error.errorCode.code).to.equal("CommissionNotOpen");
+        expect(err.error.errorCode.code).to.equal("CommissionNotCancellable");
       }
     });
 
@@ -1557,6 +1592,81 @@ describe("inter-knot", () => {
       } catch (err: any) {
         expect(err.error.errorCode.code).to.equal("InsufficientReputation");
       }
+    });
+
+    it("cancel matched commission increments abandonment counters", async () => {
+      const executorCancel = Keypair.generate();
+      await airdrop(executorCancel.publicKey);
+
+      // Commission #9: create → bid → select → cancel (matched)
+      const [commPda9] = commissionPda(9);
+      await program.methods
+        .createCommission(taskType, taskSpecHash, taskSpecUri, maxPrice, futureDeadline(), null)
+        .accounts({
+          delegator: authority.publicKey,
+          config: configPda,
+          commission: commPda9,
+          delegatorReputation: reputationPda(authority.publicKey)[0],
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      const [bidPda9] = bidPda(9, executorCancel.publicKey);
+      const [repCancel] = reputationPda(executorCancel.publicKey);
+      await program.methods
+        .submitBid(new BN(9), new BN(200_000), "http://localhost:8080/tasks")
+        .accounts({
+          executor: executorCancel.publicKey,
+          commission: commPda9,
+          bid: bidPda9,
+          executorReputation: repCancel,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([executorCancel])
+        .rpc();
+
+      await program.methods
+        .selectBid(new BN(9))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda9,
+          bid: bidPda9,
+        })
+        .rpc();
+
+      // Verify commission is Matched
+      let comm = await program.account.commission.fetch(commPda9);
+      expect(JSON.stringify(comm.status)).to.equal(JSON.stringify({ matched: {} }));
+
+      // Read delegator reputation BEFORE cancel
+      const [delegatorRepPda] = reputationPda(authority.publicKey);
+      const delegatorRepBefore = await program.account.reputationAccount.fetch(delegatorRepPda);
+      const delegatorAbandonedBefore = delegatorRepBefore.totalDelegatorAbandoned;
+
+      // Cancel the matched commission
+      await program.methods
+        .cancelCommission(new BN(9))
+        .accounts({
+          delegator: authority.publicKey,
+          commission: commPda9,
+          executor: executorCancel.publicKey,
+          executorReputation: repCancel,
+          delegatorReputation: delegatorRepPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      // Verify commission is Cancelled
+      comm = await program.account.commission.fetch(commPda9);
+      expect(JSON.stringify(comm.status)).to.equal(JSON.stringify({ cancelled: {} }));
+
+      // Verify executor abandonment counter incremented
+      const executorRep = await program.account.reputationAccount.fetch(repCancel);
+      expect(executorRep.totalAbandoned).to.equal(1);
+
+      // Verify delegator abandonment counter incremented
+      const delegatorRepAfter = await program.account.reputationAccount.fetch(delegatorRepPda);
+      expect(delegatorRepAfter.totalDelegatorAbandoned).to.equal(delegatorAbandonedBefore + 1);
     });
   });
 });

@@ -44,4 +44,6 @@ pub enum InterKnotError {
     CidEmpty,
     #[msg("Executor reputation tier does not meet commission minimum requirement")]
     InsufficientReputation,
+    #[msg("Commission cannot be cancelled (must be Open or Matched)")]
+    CommissionNotCancellable,
 }

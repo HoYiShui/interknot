@@ -1,7 +1,14 @@
 import { Command } from "commander";
-import { Bid, withReconnect } from "@inter-knot/sdk";
+import { Bid, withReconnect, ReputationTier } from "@inter-knot/sdk";
 import { buildClient } from "../utils/sdk-client.js";
 import { formatBid, printSuccess, printError, printTx } from "../utils/display.js";
+
+const TIER_LABELS: Record<number, string> = {
+  [ReputationTier.Guest]: "Guest",
+  [ReputationTier.Trusted]: "Trusted",
+  [ReputationTier.Verified]: "Verified",
+  [ReputationTier.Elite]: "Elite",
+};
 
 export function bidCommand(): Command {
   const cmd = new Command("bid").description("Manage bids (executor side)");
@@ -11,6 +18,7 @@ export function bidCommand(): Command {
     .description("List bids for a commission (use --wait to block until one appears)")
     .option("--wait", "Block until at least one bid appears")
     .option("--timeout <seconds>", "Timeout in seconds for --wait (default: 120)", "120")
+    .option("--with-reputation", "Show executor reputation tier and score alongside each bid")
     .option("--keypair <path>", "Keypair file path")
     .action(async (commissionIdStr, opts) => {
       try {
@@ -65,7 +73,19 @@ export function bidCommand(): Command {
             console.log("No bids found for this commission.");
             return;
           }
-          bids.forEach((b: Bid, i: number) => formatBid(b, i));
+          if (opts.withReputation) {
+            const wallets = bids.map((b: Bid) => b.executor);
+            const scores = await client.reputation.getScores(wallets);
+            bids.forEach((b: Bid, i: number) => {
+              formatBid(b, i);
+              const s = scores.get(b.executor.toBase58());
+              if (s) {
+                console.log(`  Reputation:  ${TIER_LABELS[s.tier]} (executor: ${s.executorScore}/1000)`);
+              }
+            });
+          } else {
+            bids.forEach((b: Bid, i: number) => formatBid(b, i));
+          }
         }
       } catch (e: any) {
         printError(e.message);

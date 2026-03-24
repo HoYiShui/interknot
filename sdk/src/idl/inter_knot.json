@@ -22,6 +22,7 @@
       "accounts": [
         {
           "name": "delegator",
+          "writable": true,
           "signer": true
         },
         {
@@ -50,6 +51,67 @@
               }
             ]
           }
+        },
+        {
+          "name": "executor"
+        },
+        {
+          "name": "executor_reputation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  112,
+                  117,
+                  116,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "executor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "delegator_reputation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  112,
+                  117,
+                  116,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "delegator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -1061,6 +1123,11 @@
       "code": 6020,
       "name": "InsufficientReputation",
       "msg": "Executor reputation tier does not meet commission minimum requirement"
+    },
+    {
+      "code": 6021,
+      "name": "CommissionNotCancellable",
+      "msg": "Commission cannot be cancelled (must be Open or Matched)"
     }
   ],
   "types": [

@@ -1,4 +1,4 @@
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { PublicKey, SystemProgram, Keypair } from "@solana/web3.js";
 import {
   getOrCreateAssociatedTokenAccount,
   createTransferInstruction,
@@ -96,11 +96,22 @@ export class CommissionClient {
 
   async cancel(commissionId: number): Promise<{ txSignature: string }> {
     const commissionPda = this.ik.commissionPda(commissionId);
+    const commission = await this.get(commissionId);
+
+    // For matched commissions, use actual executor; for open, use a dummy
+    const executor = commission.selectedExecutor ?? Keypair.generate().publicKey;
+    const executorReputation = this.ik.reputationPda(executor);
+    const delegatorReputation = this.ik.reputationPda(this.ik.wallet.publicKey);
+
     const txSignature = await this.ik.program.methods
       .cancelCommission(new BN(commissionId))
       .accounts({
         delegator: this.ik.wallet.publicKey,
         commission: commissionPda,
+        executor,
+        executorReputation,
+        delegatorReputation,
+        systemProgram: SystemProgram.programId,
       })
       .rpc();
     return { txSignature };
