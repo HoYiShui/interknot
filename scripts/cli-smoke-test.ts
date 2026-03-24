@@ -24,7 +24,7 @@ async function main() {
   console.log("═══════════════════════════════════════════\n");
 
   // [1] Top-level help
-  console.log("[1/5] CLI top-level help...");
+  console.log("[1/6] CLI top-level help...");
   const help = run("--help");
   assert(help.includes("commission"), "commission command present");
   assert(help.includes("bid"), "bid command present");
@@ -35,7 +35,7 @@ async function main() {
   console.log("  ✓ All expected commands present\n");
 
   // [2] Config show (defaults, no file required)
-  console.log("[2/5] Config defaults...");
+  console.log("[2/6] Config defaults...");
   const cfg = JSON.parse(run("config show"));
   assert(cfg.network === "devnet", "default network is devnet");
   assert(cfg.rpc === "https://api.devnet.solana.com", "default RPC is devnet");
@@ -46,7 +46,7 @@ async function main() {
   console.log("  ✓ Config defaults correct\n");
 
   // [3] Pricing estimate — 8b model
-  console.log("[3/5] Pricing estimate (llama-3-8b vs llama-3-70b differentiation)...");
+  console.log("[3/6] Pricing estimate (llama-3-8b vs llama-3-70b differentiation)...");
   const out8b = run("pricing estimate --model llama-3-8b --max-tokens 4096");
   const out70b = run("pricing estimate --model llama-3-70b --max-tokens 4096");
 
@@ -59,7 +59,7 @@ async function main() {
   console.log(`  ✓ llama-3-70b: $${price70b.toFixed(6)} USDC (more expensive)\n`);
 
   // [4] commission --help (SDK-wrapping command)
-  console.log("[4/5] Commission subcommand help...");
+  console.log("[4/6] Commission subcommand help...");
   const commHelp = run("commission --help");
   assert(commHelp.includes("create"), "create subcommand present");
   assert(commHelp.includes("list"), "list subcommand present");
@@ -68,7 +68,7 @@ async function main() {
   console.log("  ✓ Commission subcommands present\n");
 
   // [5] Day 9 additions: msg command + bid delivery-method flag
-  console.log("[5/5] Day 9 command surface (msg + bid delivery-method)...");
+  console.log("[5/6] Day 9 command surface (msg + bid delivery-method)...");
   const msgHelp = run("msg --help");
   assert(msgHelp.includes("send"), "msg send subcommand present");
   assert(msgHelp.includes("get"), "msg get subcommand present");
@@ -76,6 +76,16 @@ async function main() {
   const bidHelp = run("bid submit --help");
   assert(bidHelp.includes("delivery-method"), "--delivery-method flag present on bid submit");
   console.log("  ✓ msg command group and bid --delivery-method present\n");
+
+  // [6] Day 12: reputation command, --min-executor-tier, --with-reputation
+  console.log("[6/6] Day 12 command surface (reputation + tier gate + reputation flag)...");
+  const repHelp = run("reputation --help");
+  assert(repHelp.includes("get"), "reputation get subcommand present");
+  const commCreateHelp = run("commission create --help");
+  assert(commCreateHelp.includes("min-executor-tier"), "--min-executor-tier flag present on commission create");
+  const bidListHelp = run("bid list --help");
+  assert(bidListHelp.includes("with-reputation"), "--with-reputation flag present on bid list");
+  console.log("  ✓ reputation command, --min-executor-tier, --with-reputation present\n");
 
   console.log("═══════════════════════════════════════════");
   console.log("  ✓ CLI SMOKE TEST COMPLETED");

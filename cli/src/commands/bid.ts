@@ -25,6 +25,23 @@ export function bidCommand(): Command {
         const { client } = buildClient(opts.keypair);
         const commissionId = parseInt(commissionIdStr);
 
+        // Shared renderer: format bids with optional reputation enrichment
+        const renderBids = async (bids: Bid[]) => {
+          if (opts.withReputation) {
+            const wallets = bids.map((b: Bid) => b.executor);
+            const scores = await client.reputation.getScores(wallets);
+            bids.forEach((b: Bid, i: number) => {
+              formatBid(b, i);
+              const s = scores.get(b.executor.toBase58());
+              if (s) {
+                console.log(`  Reputation:  ${TIER_LABELS[s.tier]} (executor: ${s.executorScore}/1000)`);
+              }
+            });
+          } else {
+            bids.forEach((b: Bid, i: number) => formatBid(b, i));
+          }
+        };
+
         if (opts.wait) {
           const timeoutMs = parseInt(opts.timeout) * 1000;
           console.log(`Waiting for bids on commission #${commissionId} (timeout: ${opts.timeout}s)...`);
@@ -32,7 +49,7 @@ export function bidCommand(): Command {
           // Initial check — emit immediately if bids already exist
           const existing = await client.query.getBidsSortedByPrice(commissionId);
           if (existing.length > 0) {
-            existing.forEach((b: Bid, i: number) => formatBid(b, i));
+            await renderBids(existing);
             return;
           }
 
@@ -57,7 +74,7 @@ export function bidCommand(): Command {
                       clearTimeout(timer);
                       watcher.stop();
                       const bids = await client.query.getBidsSortedByPrice(commissionId);
-                      bids.forEach((b: Bid, i: number) => formatBid(b, i));
+                      await renderBids(bids);
                       resolve();
                     }
                   } catch { /* not a commission account or not ready */ }
@@ -73,19 +90,7 @@ export function bidCommand(): Command {
             console.log("No bids found for this commission.");
             return;
           }
-          if (opts.withReputation) {
-            const wallets = bids.map((b: Bid) => b.executor);
-            const scores = await client.reputation.getScores(wallets);
-            bids.forEach((b: Bid, i: number) => {
-              formatBid(b, i);
-              const s = scores.get(b.executor.toBase58());
-              if (s) {
-                console.log(`  Reputation:  ${TIER_LABELS[s.tier]} (executor: ${s.executorScore}/1000)`);
-              }
-            });
-          } else {
-            bids.forEach((b: Bid, i: number) => formatBid(b, i));
-          }
+          await renderBids(bids);
         }
       } catch (e: any) {
         printError(e.message);

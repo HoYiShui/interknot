@@ -1,4 +1,4 @@
-import { PublicKey, SystemProgram, Keypair } from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import {
   getOrCreateAssociatedTokenAccount,
   createTransferInstruction,
@@ -98,8 +98,10 @@ export class CommissionClient {
     const commissionPda = this.ik.commissionPda(commissionId);
     const commission = await this.get(commissionId);
 
-    // For matched commissions, use actual executor; for open, use a dummy
-    const executor = commission.selectedExecutor ?? Keypair.generate().publicKey;
+    // For matched commissions, use actual executor; for open, use program ID
+    // as a deterministic dummy so the reputation PDA is always the same address
+    // (avoids rent leakage from creating random accounts on each open cancel)
+    const executor = commission.selectedExecutor ?? this.ik.programId;
     const executorReputation = this.ik.reputationPda(executor);
     const delegatorReputation = this.ik.reputationPda(this.ik.wallet.publicKey);
 

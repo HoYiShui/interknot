@@ -14,7 +14,7 @@ export function commissionCommand(): Command {
     .requiredOption("--max-price <usdc>", "Maximum price in USDC (e.g. 0.50)")
     .requiredOption("--deadline <duration>", "Deadline (e.g. 5m, 1h, 30s)")
     .option("--spec-uri <uri>", "Task spec URI (auto-encoded data: URI if omitted)")
-    .option("--min-executor-tier <tier>", "Minimum executor tier (0=Guest, 1=Trusted, 2=Verified, 3=Elite)")
+    .option("--min-executor-tier <tier>", "Minimum executor tier: guest, trusted, verified, elite (or 0-3)")
     .option("--keypair <path>", "Keypair file path")
     .action(async (opts) => {
       try {
@@ -32,8 +32,18 @@ export function commissionCommand(): Command {
           process.exit(1);
         }
 
-        const minExecutorTier = opts.minExecutorTier != null
-          ? parseInt(opts.minExecutorTier) : undefined;
+        let minExecutorTier: number | undefined;
+        if (opts.minExecutorTier != null) {
+          const TIER_MAP: Record<string, number> = {
+            guest: 0, trusted: 1, verified: 2, elite: 3,
+          };
+          const raw = opts.minExecutorTier.toLowerCase();
+          minExecutorTier = TIER_MAP[raw] ?? parseInt(raw);
+          if (isNaN(minExecutorTier) || minExecutorTier < 0 || minExecutorTier > 3) {
+            printError("Invalid --min-executor-tier. Use: guest, trusted, verified, elite (or 0-3).");
+            process.exit(1);
+          }
+        }
 
         const { commissionId, txSignature } = await client.commission.create({
           taskType: opts.taskType,
