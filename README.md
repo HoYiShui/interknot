@@ -1,9 +1,5 @@
 # Inter-Knot
 
-<p align="center">
-  <img src="./assets/logo/interknot-logo-primary.svg" alt="Inter-Knot logo" width="680" />
-</p>
-
 English ｜ [中文](./README_zh.md)
 
 **Agent-native task trading protocol on Solana.**

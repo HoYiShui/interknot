@@ -1,9 +1,5 @@
 # Inter-Knot（绳网）
 
-<p align="center">
-  <img src="./assets/logo/interknot-logo-primary.svg" alt="Inter-Knot logo" width="680" />
-</p>
-
 [English](./README.md) ｜ 中文
 
 **一个构建在 Solana 上、面向 Agent 的任务交易协议。**
